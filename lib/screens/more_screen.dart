@@ -16,6 +16,7 @@ class MoreScreen extends StatelessWidget {
     final theme = Theme.of(context);
     final s = state.settings;
     final seed = seedColorFrom(s.seedHue, s.seedSaturation, s.seedLightness);
+    final counts = state.levelCounts;
 
     return Scaffold(
       body: SafeArea(
@@ -167,6 +168,23 @@ class MoreScreen extends StatelessWidget {
                   _row(theme, '词库', s.bank == 'ext' ? '高考词汇（高分）' : '高考词汇（保底）'),
                   _row(theme, '词数', '${state.bankTotal} 词'),
                   _row(theme, '高考年份', s.examYear == null ? '不参加' : '${s.examYear} 年'),
+                  const SizedBox(height: 12),
+                  Text('分级',
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (final level in kLevels)
+                        TagChip(
+                          '$level ${counts[level] ?? 0}',
+                          color: levelColor(level, theme.brightness),
+                          strength: 0.18,
+                        ),
+                    ],
+                  ),
                 ],
               ),
             ),

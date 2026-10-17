@@ -1,6 +1,7 @@
-﻿import 'package:flutter/material.dart' show Colors;
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langobei/theme.dart';
+import 'package:langobei/widgets/flip_card.dart';
 import 'package:langobei/app_state.dart';
 import 'package:langobei/models/word.dart';
 
@@ -112,6 +113,102 @@ void main() {
       final tooDark = seedColorFrom(200, 1, 0.0);
       expect(tooBright, isNot(equals(Colors.white)));
       expect(tooDark, isNot(equals(Colors.black)));
+    });
+  });
+
+  group('词库分级标签', () {
+    Word word(String level) => Word(
+          id: 'w-$level',
+          word: 'demo',
+          phonetic: '/x/',
+          pos: 'n.',
+          meaning: '释义',
+          level: level,
+          tier: 'core',
+        );
+
+    test('标签直接显示原文 easy / normal / hard / extra', () {
+      expect(word('easy').levelLabel, 'easy');
+      expect(word('normal').levelLabel, 'normal');
+      expect(word('hard').levelLabel, 'hard');
+      expect(word('extra').levelLabel, 'extra');
+    });
+
+    test('四个分级颜色互不相同，深浅色各一套', () {
+      final light = kLevels.map((l) => levelColor(l, Brightness.light)).toSet();
+      final dark = kLevels.map((l) => levelColor(l, Brightness.dark)).toSet();
+      expect(light.length, kLevels.length);
+      expect(dark.length, kLevels.length);
+      for (final l in kLevels) {
+        expect(levelColor(l, Brightness.dark), isNot(levelColor(l, Brightness.light)));
+      }
+    });
+
+    test('颜色语义：easy 绿、normal 黄、hard 橙、extra 红', () {
+      double hue(String level) => HSVColor.fromColor(levelColor(level, Brightness.light)).hue;
+      expect(hue('easy'), inInclusiveRange(120, 170), reason: '绿');
+      expect(hue('normal'), inInclusiveRange(40, 60), reason: '黄');
+      expect(hue('hard'), inInclusiveRange(20, 40), reason: '橙');
+      // 红色色相在 0 附近，HSV 会回绕成 358 左右，两头都要认
+      final red = hue('extra');
+      expect(red < 15 || red > 345, isTrue, reason: '红，实际 $red');
+    });
+
+    test('未知分级退回黄，不会崩', () {
+      expect(levelColor('unknown-level', Brightness.light), kLevelNormal);
+    });
+  });
+
+  group('卡片上的分级标签', () {
+    Word word(String level) => Word(
+          id: 'x-$level',
+          word: 'demo',
+          phonetic: '/x/',
+          pos: 'n.',
+          meaning: '释义',
+          level: level,
+          tier: 'core',
+        );
+
+    testWidgets('四个分级都显示原文，颜色跟着分级走', (tester) async {
+      for (final level in kLevels) {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: buildTheme(Brightness.light, defaultSeedColor),
+            home: Scaffold(body: FlipWordCard(word: word(level), revealed: false)),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final chip = tester.widget<TagChip>(find.byType(TagChip).first);
+        expect(chip.text, level, reason: '$level 的标签应该是原文');
+        expect(chip.color, levelColor(level, Brightness.light));
+      }
+    });
+
+    testWidgets('深色模式换成更亮的那一套', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.dark, defaultSeedColor),
+          home: Scaffold(body: FlipWordCard(word: word('extra'), revealed: false)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final chip = tester.widget<TagChip>(find.byType(TagChip).first);
+      expect(chip.text, 'extra');
+      expect(chip.color, kLevelExtraDark);
+    });
+
+    testWidgets('翻面后的释义面同样带分级色', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light, defaultSeedColor),
+          home: Scaffold(body: FlipWordCard(word: word('hard'), revealed: true)),
+        ),
+      );
+      await tester.pumpAndSettle();
+      final chip = tester.widget<TagChip>(find.byType(TagChip).first);
+      expect(chip.text, 'hard');
+      expect(chip.color, kLevelHard);
     });
   });
 

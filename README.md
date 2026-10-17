@@ -1,4 +1,4 @@
-﻿# LangoBei
+# LangoBei
 
 高考英语背单词 App，按桌面《修改方案》从零重写。Flutter 3.47 / Android，词库是桌面那份《高考英语3500词》。
 
@@ -50,6 +50,7 @@
 - 字段：`word / phonetic / pos / meaning / level / tier`
 - `level`：easy 1553、normal 887、hard 574、extra 526
 - `tier`：`core`（easy+normal+hard = 3014 词，保底词库）/ `ext`（extra 526 词，高分词库在保底基础上追加）
+- 分级在界面上**直接显示原文** `easy / normal / hard / extra`，并按 **easy 绿、normal 黄、hard 橙、extra 红** 上色（深浅色各一套，见 `theme.dart` 的 `levelColor`）；单词卡的正面与释义面都带这个标签，「更多 → 当前设置」里还有一整行四色图例带词数
 
 重新生成：
 

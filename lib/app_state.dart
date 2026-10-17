@@ -1,4 +1,4 @@
-﻿import 'dart:async';
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -128,6 +128,15 @@ class AppState extends ChangeNotifier {
   double get masteredRatio => bankTotal == 0 ? 0 : masteredCount / bankTotal;
 
   int get studiedCount => bankWords.where((w) => progress[w.id]?.seen ?? false).length;
+
+  /// 当前词库里各分级的词数（easy / normal / hard / extra）
+  Map<String, int> get levelCounts {
+    final counts = <String, int>{for (final l in kLevels) l: 0};
+    for (final w in bankWords) {
+      counts[w.level] = (counts[w.level] ?? 0) + 1;
+    }
+    return counts;
+  }
 
   double get overallAccuracy {
     final total = progress.values.fold<int>(0, (s, p) => s + p.knowCount + p.fuzzyCount + p.unknownCount);

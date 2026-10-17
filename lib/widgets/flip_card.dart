@@ -1,4 +1,4 @@
-import 'dart:math' as math;
+﻿import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
@@ -81,7 +81,7 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                TagChip(w.levelLabel),
+                TagChip(w.levelLabel, color: levelColor(w.level, theme.brightness), strength: 0.18),
                 if (widget.isReview) ...[
                   const SizedBox(width: 6),
                   TagChip('错题复习', color: kWarn),
@@ -126,7 +126,7 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
                   child: Text(w.word,
                       style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                 ),
-                TagChip(w.levelLabel),
+                TagChip(w.levelLabel, color: levelColor(w.level, theme.brightness), strength: 0.18),
               ],
             ),
             const SizedBox(height: 2),

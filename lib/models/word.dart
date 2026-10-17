@@ -1,13 +1,8 @@
 /// 单词与学习状态模型
 library;
 
-/// 词库分级（来自高考 3500 词库的 easy/normal/hard/extra）
-const Map<String, String> kLevelLabels = {
-  'easy': '基础',
-  'normal': '常见',
-  'hard': '进阶',
-  'extra': '拓展',
-};
+/// 词库分级：界面上直接用原文展示，配色见 theme.dart 的 [levelColor]
+const List<String> kLevels = ['easy', 'normal', 'hard', 'extra'];
 
 class Word {
   final String id;
@@ -28,7 +23,8 @@ class Word {
     required this.tier,
   });
 
-  String get levelLabel => kLevelLabels[level] ?? level;
+  /// 分级标签：直接显示原文 easy / normal / hard / extra
+  String get levelLabel => level.isEmpty ? 'normal' : level;
 
   factory Word.fromJson(Map<String, dynamic> j) => Word(
         id: j['id'] as String,

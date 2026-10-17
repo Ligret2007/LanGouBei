@@ -11,6 +11,29 @@ const Color kGood = Color(0xFF30A46C);
 const Color kWarn = Color(0xFFF5A524);
 const Color kBad = Color(0xFFE5484D);
 
+/// 词库分级配色：easy 绿 / normal 黄 / hard 橙 / extra 红
+const Color kLevelEasy = Color(0xFF2FA36B);
+const Color kLevelNormal = Color(0xFFD9A400);
+const Color kLevelHard = Color(0xFFF07C1E);
+const Color kLevelExtra = Color(0xFFE5484D);
+
+// 深色下用更亮的一档，避免压在暗底上看不清
+const Color kLevelEasyDark = Color(0xFF4CC38A);
+const Color kLevelNormalDark = Color(0xFFE9C24B);
+const Color kLevelHardDark = Color(0xFFFF9E4D);
+const Color kLevelExtraDark = Color(0xFFFF6B70);
+
+Color levelColor(String level, Brightness brightness) {
+  final dark = brightness == Brightness.dark;
+  return switch (level) {
+    'easy' => dark ? kLevelEasyDark : kLevelEasy,
+    'normal' => dark ? kLevelNormalDark : kLevelNormal,
+    'hard' => dark ? kLevelHardDark : kLevelHard,
+    'extra' => dark ? kLevelExtraDark : kLevelExtra,
+    _ => dark ? kLevelNormalDark : kLevelNormal,
+  };
+}
+
 /// 由 HSL 得到种子色；色轮只改 H/S，明度走单独滑杆
 Color seedColorFrom(double hue, double saturation, double lightness) {
   return HSLColor.fromAHSL(
@@ -116,7 +139,10 @@ class TagChip extends StatelessWidget {
   final String text;
   final Color? color;
 
-  const TagChip(this.text, {super.key, this.color});
+  /// 底色浓度；分级标签用得更实一点，让颜色一眼能认出来
+  final double strength;
+
+  const TagChip(this.text, {super.key, this.color, this.strength = 0.10});
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +151,7 @@ class TagChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: c.withValues(alpha: 0.10),
+        color: c.withValues(alpha: strength),
         borderRadius: BorderRadius.circular(7),
       ),
       child: Text(text,
