@@ -1,6 +1,10 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langobei/theme.dart';
+import 'package:langobei/export_service.dart';
 import 'package:langobei/screens/more_screen.dart';
 import 'package:langobei/screens/study_screen.dart';
 import 'package:langobei/widgets/flip_card.dart';
@@ -312,6 +316,162 @@ void main() {
         tester.widget<Text>(find.text('知新')).style?.color,
         theme.colorScheme.primary,
       );
+    });
+  });
+
+  group('导出用户数据', () {
+    AppState sample() {
+      final s = AppState();
+      s.allWords = const [
+        Word(
+          id: 'apple-easy-1',
+          word: 'apple',
+          phonetic: '/aepl/',
+          pos: 'n.',
+          meaning: '苹果',
+          level: 'easy',
+          tier: 'ext',
+        ),
+        Word(
+          id: 'book-normal-2',
+          word: 'book',
+          phonetic: '/buk/',
+          pos: 'n.',
+          meaning: '书',
+          level: 'normal',
+          tier: 'ext',
+        ),
+      ];
+      s.progress['apple-easy-1'] = WordProgress()
+        ..knowCount = 3
+        ..fuzzyCount = 1
+        ..inWrongBook = true;
+      s.progress['book-normal-2'] = WordProgress()..knowCount = 1;
+      s.daily['2026-10-17'] = DayStat(choices: 10, correct: 6);
+      s.streak = 4;
+      s.lastStudyDay = '2026-10-17';
+      s.settings = Settings(bank: 'ext', examYear: 2027, themePreset: 'green');
+      return s;
+    }
+
+    /// 按钮在长页面下半部分，测试视口装不下，先滚到可见再点
+    Future<void> tapButton(WidgetTester tester, String label) async {
+      final finder = find.text(label);
+      await tester.ensureVisible(finder);
+      await tester.pumpAndSettle();
+      await tester.tap(finder);
+      await tester.pumpAndSettle();
+    }
+
+    test('文件名带时间戳且是 .json', () {
+      expect(ExportService.fileName(DateTime(2026, 10, 17, 22, 30, 45)),
+          'langobei-20261017-223045.json');
+      expect(ExportService.fileName(DateTime(2026, 1, 2, 3, 4, 5)),
+          'langobei-20260102-030405.json');
+    });
+
+    test('导出内容带上元信息与统计', () {
+      final s = sample();
+      final out = ExportService.payload(s, now: DateTime(2026, 10, 17, 22, 30));
+      expect(out['app'], 'LangoBei');
+      expect(out['format'], ExportService.format);
+      expect(out['exportedAt'], startsWith('2026-10-17T22:30'));
+      expect(out['utcOffsetMinutes'], isA<int>());
+
+      final summary = out['summary'] as Map<String, dynamic>;
+      expect(summary['know'], 4, reason: '两个词各 3 次和 1 次认识');
+      expect(summary['fuzzy'], 1);
+      expect(summary['wrong'], 1);
+      expect(summary['streak'], 4);
+      expect(summary['themePreset'], 'green');
+      expect(summary['examYear'], 2027);
+      expect(summary['today'], containsPair('choices', 10));
+    });
+
+    test('data 段与落盘存档完全一致，可直接用来恢复', () {
+      final s = sample();
+      final out = ExportService.payload(s);
+      expect(out['data'], s.toSnapshot());
+
+      final back = jsonDecode(ExportService.json(s)) as Map<String, dynamic>;
+      final data = back['data'] as Map<String, dynamic>;
+      expect((data['progress'] as Map).length, 2);
+      expect((data['daily'] as Map)['2026-10-17'], {'c': 10, 'r': 6});
+      expect((data['settings'] as Map)['preset'], 'green');
+      expect(data['streak'], 4);
+    });
+
+    test('导出的 JSON 是格式化过的，能直接打开看', () {
+      final text = ExportService.json(sample());
+      expect(text, contains('\n  '));
+      expect(jsonDecode(text), isA<Map<String, dynamic>>());
+    });
+
+    testWidgets('点「导出为文件」把 JSON 交给原生通道', (tester) async {
+      String? sentName;
+      String? sentContent;
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('langobei/export'),
+        (call) async {
+          if (call.method == 'saveToDownloads') {
+            final args = Map<String, Object?>.from(call.arguments as Map);
+            sentName = args['filename'] as String?;
+            sentContent = args['content'] as String?;
+            return '下载/$sentName';
+          }
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: MoreScreen(state: sample()),
+      ));
+      await tester.pumpAndSettle();
+      await tapButton(tester, '导出为文件');
+
+      expect(sentName, endsWith('.json'));
+      expect(sentContent, contains('"app": "LangoBei"'));
+      expect(sentContent, contains('apple-easy-1'));
+      expect(find.textContaining('已导出到 下载/'), findsOneWidget);
+    });
+
+    testWidgets('点「复制 JSON」写进剪贴板', (tester) async {
+      final calls = <MethodCall>[];
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        (call) async {
+          calls.add(call);
+          return null;
+        },
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: MoreScreen(state: sample()),
+      ));
+      await tester.pumpAndSettle();
+      await tapButton(tester, '复制 JSON');
+
+      final set = calls.firstWhere((c) => c.method == 'Clipboard.setData');
+      expect((set.arguments as Map)['text'], contains('"format": 1'));
+      expect(find.textContaining('已复制'), findsOneWidget);
+    });
+
+    testWidgets('原生报错时给出失败提示而不是崩溃', (tester) async {
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        const MethodChannel('langobei/export'),
+        (call) async => throw PlatformException(code: 'save_failed', message: '磁盘满了'),
+      );
+
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: MoreScreen(state: sample()),
+      ));
+      await tester.pumpAndSettle();
+      await tapButton(tester, '导出为文件');
+
+      expect(find.text('导出失败：磁盘满了'), findsOneWidget);
     });
   });
 

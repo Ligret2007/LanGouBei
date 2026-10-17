@@ -66,17 +66,17 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> _saveNow() async {
-    await _prefs?.setString(
-      _key,
-      jsonEncode({
+  /// 存档内容：写盘和「导出数据」共用同一份格式，导出的东西就是能用来恢复的东西
+  Map<String, dynamic> toSnapshot() => {
         'progress': progress.map((k, v) => MapEntry(k, v.toJson())),
         'daily': daily.map((k, v) => MapEntry(k, v.toJson())),
         'settings': settings.toJson(),
         'streak': streak,
         'lastStudyDay': lastStudyDay,
-      }),
-    );
+      };
+
+  Future<void> _saveNow() async {
+    await _prefs?.setString(_key, jsonEncode(toSnapshot()));
   }
 
   /// 连续点选时避免每张卡都写盘

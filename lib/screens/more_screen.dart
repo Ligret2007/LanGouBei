@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../app_state.dart';
+import '../export_service.dart';
 import '../models/word.dart';
 import '../theme.dart';
 
@@ -142,6 +145,63 @@ class MoreScreen extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 14),
+
+            // ---------------- 数据导出 ----------------
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('数据',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 6),
+                  Text(
+                    '把学习进度、每日记录和外观设置导出成一个 JSON 文件，存到手机的「下载」目录，方便备份或发给我帮你分析。',
+                    style: theme.textTheme.bodySmall
+                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.6),
+                  ),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () => _export(context),
+                          icon: const Icon(Icons.save_alt_rounded, size: 18),
+                          label: const Text('导出为文件'),
+                          style: FilledButton.styleFrom(
+                            textStyle: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () => _copyJson(context),
+                          icon: const Icon(Icons.copy_all_rounded, size: 18),
+                          label: const Text('复制 JSON'),
+                          style: OutlinedButton.styleFrom(
+                            textStyle: const TextStyle(fontSize: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: TextButton.icon(
+                      onPressed: () => _shareJson(context),
+                      icon: const Icon(Icons.ios_share_rounded, size: 16),
+                      label: const Text('分享文本'),
+                      style: TextButton.styleFrom(
+                        visualDensity: VisualDensity.compact,
+                        textStyle: const TextStyle(fontSize: 12),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
             SurfaceCard(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,7 +211,7 @@ class MoreScreen extends StatelessWidget {
                           ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 6),
                   Text(
-                    '账号同步、发音设置、免打扰时段、导出词表这些还没做，先放着。',
+                    '账号同步、发音设置、免打扰时段、导出词表（CSV）这些还没做，先放着。',
                     style: theme.textTheme.bodySmall
                         ?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.6),
                   ),
@@ -218,6 +278,48 @@ class MoreScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _toast(BuildContext context, String text, {SnackBarAction? action}) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+        content: Text(text),
+        duration: const Duration(seconds: 4),
+        action: action,
+      ));
+  }
+
+  /// 导出成文件，落到系统「下载」目录
+  Future<void> _export(BuildContext context) async {
+    final r = await ExportService.exportToFile(state);
+    if (!context.mounted) return;
+    if (!r.ok) {
+      _toast(context, '导出失败：${r.message}');
+      return;
+    }
+    _toast(
+      context,
+      '已导出到 ${r.message}',
+      action: SnackBarAction(
+        label: '复制路径',
+        onPressed: () => Clipboard.setData(ClipboardData(text: r.message)),
+      ),
+    );
+  }
+
+  /// 复制整份 JSON 到剪贴板：没有文件系统权限的场合也能用
+  Future<void> _copyJson(BuildContext context) async {
+    await ExportService.copyToClipboard(state);
+    if (!context.mounted) return;
+    final kb = utf8.encode(ExportService.json(state)).length / 1024;
+    _toast(context, '已复制 ${kb.toStringAsFixed(1)} KB JSON 到剪贴板');
+  }
+
+  Future<void> _shareJson(BuildContext context) async {
+    final r = await ExportService.share(state);
+    if (!context.mounted || r.ok) return;
+    _toast(context, '分享失败：${r.message}');
   }
 
   void _pickPreset(BuildContext context, ThemePreset p) {
