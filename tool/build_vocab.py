@@ -1,10 +1,11 @@
-"""把桌面上的「高考英语3500词」解析成 App 用的 JSON 词库。"""
+"""把本地整理的词表 txt 解析成 App 用的 JSON 词库（本项目自编词库的生成脚本）。"""
 import json, re, sys, os
 from collections import Counter
 
 sys.stdout.reconfigure(encoding="utf-8")
 
-SRC = os.path.expanduser(r"~\Desktop\高考英语3500词库\高考英语3500词.txt")
+# 输入是本地整理的纯文本词表（每行：单词 音标 分级 释义），也可用命令行参数指定别的路径
+SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser(r"~\Desktop\高考英语3500词库\高考英语3500词.txt")
 OUT = r"C:\Users\Ligret\Documents\deepseek-harness\default-workspace\langobei\assets\words_gaokao.json"
 
 LINE_RE = re.compile(r"^\s*(.+?)\s+(/[^/]*/)\s+(easy|normal|hard|extra)\s+(.+?)\s*$")
@@ -60,7 +61,6 @@ print("long meanings:", sum(1 for w in words if len(w["meaning"]) > 60))
 os.makedirs(os.path.dirname(OUT), exist_ok=True)
 payload = {
     "version": 1,
-    "source": "高考英语3500词",
     "counts": {"all": len(words), "core": core, "extra": len(words) - core},
     "words": [
         {k: w[k] for k in ("id", "word", "phonetic", "pos", "meaning", "level", "tier")}

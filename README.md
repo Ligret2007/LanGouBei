@@ -1,6 +1,8 @@
 # LangoBei
 
-高考英语背单词 App，按桌面《修改方案》从零重写。Flutter 3.47 / Android，词库是桌面那份《高考英语3500词》。
+高考英语背单词 App，用 Flutter 从零写的（Flutter 3.47 / Android）。内置 3540 词离线词库，无需联网、无需登录。
+
+MIT 协议开源，自用/二改/商用都行，保留版权声明即可。
 
 ## 界面预览
 
@@ -56,7 +58,7 @@
 
 ## 三、词库
 
-`assets/words_gaokao.json`（551 KB，3540 词）由桌面 `高考英语3500词.txt` 解析生成：
+`assets/words_gaokao.json`（551 KB，3540 词）是本项目自编的词库，用 `tool/build_vocab.py` 生成：
 
 - 字段：`word / phonetic / pos / meaning / level / tier`
 - `level`：easy 1553、normal 887、hard 574、extra 526
@@ -158,3 +160,7 @@ flutter test                # 62 个测试，覆盖三态判定、3 秒规则、
 - release 包目前用 debug 签名，上架前要换成自己的 keystore。
 - 词库只有单词/音标/词性/释义，没有例句和发音；需要的话可以再接 TTS 或补例句字段。
 - 「github 开源：LangoBei」里的仓库地址是占位，等真的建仓库后改成实际地址。
+
+## 八、开源协议
+
+[MIT](LICENSE) © 2026 Ligret —— 随便用、随便改、可以商用，只要保留版权声明。
