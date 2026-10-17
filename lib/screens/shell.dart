@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
-import 'mine_screen.dart';
+import 'more_screen.dart';
 import 'quant_screen.dart';
 import 'reflect_screen.dart';
 import 'study_screen.dart';
@@ -34,7 +34,7 @@ class _ShellState extends State<Shell> {
           StudyScreen(state: widget.state),
           ReflectScreen(key: _reflectKey, state: widget.state),
           QuantScreen(state: widget.state),
-          MineScreen(state: widget.state),
+          MoreScreen(state: widget.state),
         ],
       ),
       bottomNavigationBar: NavigationBar(
@@ -57,9 +57,9 @@ class _ShellState extends State<Shell> {
             label: '量化',
           ),
           NavigationDestination(
-            icon: Icon(Icons.person_outline),
-            selectedIcon: Icon(Icons.person),
-            label: '我的',
+            icon: Icon(Icons.tune_outlined),
+            selectedIcon: Icon(Icons.tune),
+            label: '更多',
           ),
         ],
       ),

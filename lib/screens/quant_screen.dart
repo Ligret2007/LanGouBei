@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
@@ -102,7 +102,7 @@ class QuantScreen extends StatelessWidget {
                     value: stat.choices == 0 ? '--' : '${(stat.accuracy * 100).round()}%',
                     hint: '今日 ${stat.choices} 次选择',
                     icon: Icons.track_changes_rounded,
-                    color: kBrand,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
                 const SizedBox(width: 12),

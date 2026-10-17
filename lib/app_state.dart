@@ -1,4 +1,4 @@
-import 'dart:async';
+﻿import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
@@ -249,12 +249,46 @@ class AppState extends ChangeNotifier {
     await _saveNow();
   }
 
+  Future<void> setThemeMode(ThemeModeSetting mode) async {
+    settings.themeMode = mode;
+    notifyListeners();
+    await _saveNow();
+  }
+
+  /// 主题色：拖动色轮时高频调用，用防抖写盘
+  void setSeed({double? hue, double? saturation, double? lightness}) {
+    if (hue != null) settings.seedHue = hue;
+    if (saturation != null) settings.seedSaturation = saturation;
+    if (lightness != null) settings.seedLightness = lightness;
+    notifyListeners();
+    _scheduleSave();
+  }
+
+  Future<void> resetSeed() async {
+    settings.seedHue = 229;
+    settings.seedSaturation = 1.0;
+    settings.seedLightness = 0.55;
+    notifyListeners();
+    await _saveNow();
+  }
+
+  /// 清空学习进度，但保留外观偏好
   Future<void> resetAll() async {
+    final mode = settings.themeMode;
+    final hue = settings.seedHue;
+    final sat = settings.seedSaturation;
+    final light = settings.seedLightness;
+
     progress = {};
     daily = {};
     streak = 0;
     lastStudyDay = null;
-    settings = Settings();
+    settings = Settings(
+      themeMode: mode,
+      seedHue: hue,
+      seedSaturation: sat,
+      seedLightness: light,
+    );
     notifyListeners();
     await _saveNow();
   }

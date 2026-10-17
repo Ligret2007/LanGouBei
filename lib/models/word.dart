@@ -130,23 +130,52 @@ class DayStat {
       );
 }
 
-/// 用户设置（引导流程产生）
+/// 外观模式：跟随系统 / 浅色 / 深色
+enum ThemeModeSetting { system, light, dark }
+
 class Settings {
   bool onboarded;
   String bank; // core / ext
   int? examYear; // 参加高考的年份，null 表示不参加
 
-  Settings({this.onboarded = false, this.bank = 'core', this.examYear});
+  /// 外观模式
+  ThemeModeSetting themeMode;
+
+  /// 主题色的 HSL（色轮给 H 和 S，明度单独一根滑杆）
+  double seedHue; // 0-360
+  double seedSaturation; // 0-1
+  double seedLightness; // 0-1
+
+  Settings({
+    this.onboarded = false,
+    this.bank = 'core',
+    this.examYear,
+    this.themeMode = ThemeModeSetting.system,
+    this.seedHue = 229,
+    this.seedSaturation = 1.0,
+    this.seedLightness = 0.55,
+  });
 
   Map<String, dynamic> toJson() => {
         'onboarded': onboarded,
         'bank': bank,
         'examYear': examYear,
+        'themeMode': themeMode.name,
+        'hue': seedHue,
+        'sat': seedSaturation,
+        'light': seedLightness,
       };
 
   factory Settings.fromJson(Map<String, dynamic> j) => Settings(
         onboarded: j['onboarded'] as bool? ?? false,
         bank: j['bank'] as String? ?? 'core',
         examYear: (j['examYear'] as num?)?.toInt(),
+        themeMode: ThemeModeSetting.values.firstWhere(
+          (m) => m.name == j['themeMode'],
+          orElse: () => ThemeModeSetting.system,
+        ),
+        seedHue: (j['hue'] as num?)?.toDouble() ?? 229,
+        seedSaturation: (j['sat'] as num?)?.toDouble() ?? 1.0,
+        seedLightness: (j['light'] as num?)?.toDouble() ?? 0.55,
       );
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'app_state.dart';
+import 'models/word.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/shell.dart';
 import 'screens/splash_screen.dart';
@@ -22,14 +23,22 @@ class LangoBeiApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListenableBuilder(
       listenable: state,
-      builder: (context, _) => MaterialApp(
-        title: 'LangoBei',
-        debugShowCheckedModeBanner: false,
-        theme: buildTheme(Brightness.light),
-        darkTheme: buildTheme(Brightness.dark),
-        themeMode: ThemeMode.system,
-        home: RootGate(state: state),
-      ),
+      builder: (context, _) {
+        final s = state.settings;
+        final seed = seedColorFrom(s.seedHue, s.seedSaturation, s.seedLightness);
+        return MaterialApp(
+          title: 'LangoBei',
+          debugShowCheckedModeBanner: false,
+          theme: buildTheme(Brightness.light, seed),
+          darkTheme: buildTheme(Brightness.dark, seed),
+          themeMode: switch (s.themeMode) {
+            ThemeModeSetting.system => ThemeMode.system,
+            ThemeModeSetting.light => ThemeMode.light,
+            ThemeModeSetting.dark => ThemeMode.dark,
+          },
+          home: RootGate(state: state),
+        );
+      },
     );
   }
 }

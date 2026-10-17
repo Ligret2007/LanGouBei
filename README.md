@@ -31,9 +31,19 @@
 | **知新** | 卡片学习：翻面看释义 → 不认识 / 模糊 / 认识（+ 首轮的确定认识）。选「不认识」进错题本；换词时有右滑淡入动画；顶部显示今日次数、错题本数、已掌握数 |
 | **反思** | 与知新同样的布局，但只有「认识 / 不认识」两个选项，单词全部来自错题本；认识→移出，不认识→保留。错题本空了显示空状态 |
 | **量化** | 距离高考天数、已连续天数、今日正确率、已掌握数量 + 百分比进度条、错题本数量、最近七天每天选择次数的柱状图 |
-| **我的** | 按方案「暂不开发」：只放版本、当前词库/词数/高考年份，以及「清空进度重新走引导」 |
+| **更多** | 外观设置（深色模式、主题色色轮）、当前词库/词数/高考年份、版本信息，以及「清空进度重新走引导」 |
 
-## 二、词库
+## 二、外观（更多 → 外观）
+
+- **深色模式**：跟随系统 / 浅色 / 深色 三档，切换后立即生效，走 `MaterialApp.themeMode`
+- **主题色**：HSL 色轮取色 —— 角度是色相（0-360°，0° 在正右、顺时针），半径是饱和度（0-1），明度用下面那根滑杆单独调（0.2-0.8）
+  - 当前色以 `HSL 229° · 100% · 55%` + `#1A44FF` 的形式实时显示，另有「恢复默认色」回到最初的品牌蓝
+  - 色轮只给出(色相, 饱和度)，最终交给 `ColorScheme.fromSeed` 生成整套配色；所以换色之后进度条、标签、按钮会一起变
+  - 拖动时 `notifyListeners` 每帧刷新，写盘走 600ms 防抖
+- 这一层刻意做成「一个 HSL 接口」：以后要换成预设色板，只要替换 `setSeed` 的调用方，`Settings` 里存的一直是 HSL
+- 色轮嵌在可滚动页面里，用的是一旦被判负就强行接管的手势识别器，所以竖直拖动不会被列表滚走
+
+## 三、词库
 
 `assets/words_gaokao.json`（551 KB，3540 词）由桌面 `高考英语3500词.txt` 解析生成：
 
@@ -47,7 +57,7 @@
 python tool\build_vocab.py     # 改路径后重新跑即可
 ```
 
-## 三、代码结构
+## 四、代码结构
 
 ```
 lib/
@@ -56,6 +66,7 @@ lib/
   theme.dart                 Material 3 主题
   models/word.dart           Word / WordProgress / DayStat / Settings
   widgets/flip_card.dart     3D 翻转卡（正面单词，背面释义）
+  widgets/hsl_color_wheel.dart  HSL 色轮取色器
   screens/
     onboarding_screen.dart   四页引导
     splash_screen.dart       加载页 + 高考倒计时
@@ -63,12 +74,12 @@ lib/
     study_screen.dart        知新
     reflect_screen.dart      反思
     quant_screen.dart        量化
-    mine_screen.dart         我的
+    more_screen.dart         更多（外观设置 + 关于）
 ```
 
 持久化用 `shared_preferences` 存一个 JSON（进度、每日统计、设置、连续天数），连续点选时 600ms 防抖写盘。
 
-## 四、开发命令
+## 五、开发命令
 
 ```powershell
 cd C:\Users\Ligret\Documents\deepseek-harness\default-workspace\langobei
@@ -76,10 +87,10 @@ flutter pub get
 flutter run                 # 模拟器/真机热重载
 flutter build apk --release # 产物 build\app\outputs\flutter-apk\app-release.apk
 flutter analyze
-flutter test                # 17 个测试，覆盖三态判定与 3 秒规则
+flutter test                # 22 个测试，覆盖三态判定、3 秒规则、外观设置
 ```
 
-## 五、已知情况
+## 六、已知情况
 
 - **release 关闭了 R8**（`android/app/build.gradle.kts`）。AGP 9 默认压缩会裁掉插件反射调用的 Pigeon 方法，装上就崩 `NoSuchMethodError`；等插件适配后可改回 `isMinifyEnabled = true` 并补 keep 规则。
 - release 包目前用 debug 签名，上架前要换成自己的 keystore。

@@ -1,15 +1,32 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-const Color kBrand = Color(0xFF4C6FFF);
+/// 默认主题色（HSL 229 / 100% / 55%）
+const double kDefaultHue = 229;
+const double kDefaultSaturation = 1.0;
+const double kDefaultLightness = 0.55;
+
 const Color kAccent = Color(0xFFFF8A3D);
 const Color kGood = Color(0xFF30A46C);
 const Color kWarn = Color(0xFFF5A524);
 const Color kBad = Color(0xFFE5484D);
 
-ThemeData buildTheme(Brightness brightness) {
+/// 由 HSL 得到种子色；色轮只改 H/S，明度走单独滑杆
+Color seedColorFrom(double hue, double saturation, double lightness) {
+  return HSLColor.fromAHSL(
+    1,
+    hue.clamp(0.0, 360.0),
+    saturation.clamp(0.0, 1.0),
+    lightness.clamp(0.15, 0.85),
+  ).toColor();
+}
+
+Color get defaultSeedColor =>
+    seedColorFrom(kDefaultHue, kDefaultSaturation, kDefaultLightness);
+
+ThemeData buildTheme(Brightness brightness, Color seed) {
   final scheme = ColorScheme.fromSeed(
-    seedColor: kBrand,
+    seedColor: seed,
     brightness: brightness,
     secondary: kAccent,
   );

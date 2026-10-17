@@ -1,4 +1,6 @@
+﻿import 'package:flutter/material.dart' show Colors;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:langobei/theme.dart';
 import 'package:langobei/app_state.dart';
 import 'package:langobei/models/word.dart';
 
@@ -67,6 +69,50 @@ void main() {
 
   test('dayKey 补零', () {
     expect(AppState.dayKey(DateTime(2026, 1, 5)), '2026-01-05');
+  });
+
+  group('外观设置', () {
+    test('默认跟随系统、默认主题蓝', () {
+      final s = Settings();
+      expect(s.themeMode, ThemeModeSetting.system);
+      expect(s.seedHue, 229);
+      expect(s.seedSaturation, 1.0);
+      expect(s.seedLightness, 0.55);
+    });
+
+    test('外观字段能存能读', () {
+      final s = Settings(
+        themeMode: ThemeModeSetting.dark,
+        seedHue: 12.5,
+        seedSaturation: 0.42,
+        seedLightness: 0.61,
+      );
+      final back = Settings.fromJson(s.toJson());
+      expect(back.themeMode, ThemeModeSetting.dark);
+      expect(back.seedHue, closeTo(12.5, 0.001));
+      expect(back.seedSaturation, closeTo(0.42, 0.001));
+      expect(back.seedLightness, closeTo(0.61, 0.001));
+    });
+
+    test('老数据没有外观字段也能读', () {
+      final back = Settings.fromJson({'onboarded': true, 'bank': 'ext'});
+      expect(back.themeMode, ThemeModeSetting.system);
+      expect(back.seedHue, 229);
+    });
+
+    test('HSL 229° 是蓝色系，0° 是红色系', () {
+      final blue = seedColorFrom(229, 1, 0.55);
+      expect(blue.b, greaterThan(blue.r));
+      final red = seedColorFrom(0, 1, 0.55);
+      expect(red.r, greaterThan(red.b));
+    });
+
+    test('明度会被夹在安全区间', () {
+      final tooBright = seedColorFrom(200, 1, 1.0);
+      final tooDark = seedColorFrom(200, 1, 0.0);
+      expect(tooBright, isNot(equals(Colors.white)));
+      expect(tooDark, isNot(equals(Colors.black)));
+    });
   });
 
   test('Rating 编码', () {
