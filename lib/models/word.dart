@@ -129,6 +129,64 @@ class DayStat {
 /// 外观模式：跟随系统 / 浅色 / 深色
 enum ThemeModeSetting { system, light, dark }
 
+/// 主题色预设：色值仍然用 HSL 描述，方便以后加自定义取色
+class ThemePreset {
+  final String id;
+  final String label;
+  final double hue; // 0-360
+  final double saturation; // 0-1
+  final double lightness; // 0-1
+
+  /// 留空的格子：占位用，不能选中
+  final bool reserved;
+
+  const ThemePreset({
+    required this.id,
+    required this.label,
+    required this.hue,
+    required this.saturation,
+    required this.lightness,
+    this.reserved = false,
+  });
+}
+
+/// 四选一：默认 / 深绿 / 紫色 /（留空）
+const List<ThemePreset> kThemePresets = [
+  ThemePreset(id: 'default', label: '默认', hue: 229, saturation: 1.00, lightness: 0.55),
+  ThemePreset(id: 'green', label: '深绿', hue: 152, saturation: 0.62, lightness: 0.36),
+  ThemePreset(id: 'purple', label: '紫色', hue: 272, saturation: 0.70, lightness: 0.52),
+  ThemePreset(
+    id: 'reserved',
+    label: '待定',
+    hue: 0,
+    saturation: 0,
+    lightness: 0.5,
+    reserved: true,
+  ),
+];
+
+ThemePreset presetById(String id) => kThemePresets.firstWhere(
+      (p) => p.id == id && !p.reserved,
+      orElse: () => kThemePresets.first,
+    );
+
+/// 老数据里存的是自由 HSL，迁移时找色相最接近的预设
+ThemePreset nearestPreset(double hue) {
+  ThemePreset best = kThemePresets.first;
+  var bestGap = 361.0;
+  for (final p in kThemePresets) {
+    if (p.reserved) continue;
+    final gap = (p.hue - hue).abs();
+    final wrapped = gap > 180 ? 360 - gap : gap;
+    if (wrapped < bestGap) {
+      bestGap = wrapped;
+      best = p;
+    }
+  }
+  // 差距太大就认为是随手拖的，回到默认
+  return bestGap <= 24 ? best : kThemePresets.first;
+}
+
 class Settings {
   bool onboarded;
   String bank; // core / ext
@@ -137,19 +195,15 @@ class Settings {
   /// 外观模式
   ThemeModeSetting themeMode;
 
-  /// 主题色的 HSL（色轮给 H 和 S，明度单独一根滑杆）
-  double seedHue; // 0-360
-  double seedSaturation; // 0-1
-  double seedLightness; // 0-1
+  /// 主题色预设 id（default / green / purple）
+  String themePreset;
 
   Settings({
     this.onboarded = false,
     this.bank = 'core',
     this.examYear,
     this.themeMode = ThemeModeSetting.system,
-    this.seedHue = 229,
-    this.seedSaturation = 1.0,
-    this.seedLightness = 0.55,
+    this.themePreset = 'default',
   });
 
   Map<String, dynamic> toJson() => {
@@ -157,9 +211,7 @@ class Settings {
         'bank': bank,
         'examYear': examYear,
         'themeMode': themeMode.name,
-        'hue': seedHue,
-        'sat': seedSaturation,
-        'light': seedLightness,
+        'preset': themePreset,
       };
 
   factory Settings.fromJson(Map<String, dynamic> j) => Settings(
@@ -170,8 +222,15 @@ class Settings {
           (m) => m.name == j['themeMode'],
           orElse: () => ThemeModeSetting.system,
         ),
-        seedHue: (j['hue'] as num?)?.toDouble() ?? 229,
-        seedSaturation: (j['sat'] as num?)?.toDouble() ?? 1.0,
-        seedLightness: (j['light'] as num?)?.toDouble() ?? 0.55,
+        themePreset: _migratePreset(j),
       );
+
+  /// 新字段直接用 preset；老数据只有自由 HSL，就迁到最接近的预设
+  static String _migratePreset(Map<String, dynamic> j) {
+    final saved = j['preset'] as String?;
+    if (saved != null) return presetById(saved).id;
+    final legacyHue = (j['hue'] as num?)?.toDouble();
+    if (legacyHue == null) return 'default';
+    return nearestPreset(legacyHue).id;
+  }
 }

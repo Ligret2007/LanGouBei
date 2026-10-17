@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langobei/theme.dart';
+import 'package:langobei/screens/more_screen.dart';
 import 'package:langobei/widgets/flip_card.dart';
 import 'package:langobei/app_state.dart';
 import 'package:langobei/models/word.dart';
@@ -73,32 +74,66 @@ void main() {
   });
 
   group('外观设置', () {
-    test('默认跟随系统、默认主题蓝', () {
+    test('默认跟随系统、主题色是默认蓝', () {
       final s = Settings();
       expect(s.themeMode, ThemeModeSetting.system);
-      expect(s.seedHue, 229);
-      expect(s.seedSaturation, 1.0);
-      expect(s.seedLightness, 0.55);
+      expect(s.themePreset, 'default');
+      expect(seedForPreset(presetById(s.themePreset)), defaultSeedColor);
     });
 
     test('外观字段能存能读', () {
-      final s = Settings(
-        themeMode: ThemeModeSetting.dark,
-        seedHue: 12.5,
-        seedSaturation: 0.42,
-        seedLightness: 0.61,
-      );
+      final s = Settings(themeMode: ThemeModeSetting.dark, themePreset: 'purple');
       final back = Settings.fromJson(s.toJson());
       expect(back.themeMode, ThemeModeSetting.dark);
-      expect(back.seedHue, closeTo(12.5, 0.001));
-      expect(back.seedSaturation, closeTo(0.42, 0.001));
-      expect(back.seedLightness, closeTo(0.61, 0.001));
+      expect(back.themePreset, 'purple');
     });
 
     test('老数据没有外观字段也能读', () {
       final back = Settings.fromJson({'onboarded': true, 'bank': 'ext'});
       expect(back.themeMode, ThemeModeSetting.system);
-      expect(back.seedHue, 229);
+      expect(back.themePreset, 'default');
+    });
+
+    test('四选一：默认 / 深绿 / 紫色，外加一个留空', () {
+      expect(kThemePresets.length, 4);
+      expect(kThemePresets.where((p) => p.reserved).length, 1);
+      expect(
+        kThemePresets.where((p) => !p.reserved).map((p) => p.label).toList(),
+        ['默认', '深绿', '紫色'],
+      );
+      expect(kThemePresets.last.reserved, isTrue);
+    });
+
+    test('留空的格子选不中，未知 id 也退回默认', () {
+      expect(presetById('reserved').id, 'default', reason: '留空格不能成为当前主题');
+      expect(presetById('不存在的').id, 'default');
+      expect(presetById('green').id, 'green');
+    });
+
+    test('每个预设的颜色就是它声明的 HSL', () {
+      for (final p in kThemePresets) {
+        if (p.reserved) continue;
+        final hsv = HSVColor.fromColor(seedForPreset(p));
+        expect(hsv.hue, closeTo(p.hue, 1.0), reason: '${p.label} 的色相');
+      }
+    });
+
+    test('深绿更绿，紫色蓝红都压过绿', () {
+      final green = seedForPreset(presetById('green'));
+      final blue = seedForPreset(presetById('default'));
+      final purple = seedForPreset(presetById('purple'));
+
+      expect(green.g, greaterThan(green.b), reason: '深绿：绿分量最高');
+      expect(blue.b, greaterThan(blue.r), reason: '默认：偏蓝');
+      expect(purple.b, greaterThan(purple.g), reason: '紫色：蓝分量压过绿');
+      expect(purple.r, greaterThan(purple.g), reason: '紫色：红分量也压过绿');
+    });
+
+    test('老数据的自由 HSL 会迁到最接近的预设', () {
+      expect(Settings.fromJson({'hue': 150.0}).themePreset, 'green');
+      expect(Settings.fromJson({'hue': 268.0}).themePreset, 'purple');
+      // 随手拖到的橙色离三个预设都远，回到默认
+      expect(Settings.fromJson({'hue': 30.0}).themePreset, 'default');
     });
 
     test('HSL 229° 是蓝色系，0° 是红色系', () {
@@ -209,6 +244,43 @@ void main() {
       final chip = tester.widget<TagChip>(find.byType(TagChip).first);
       expect(chip.text, 'hard');
       expect(chip.color, kLevelHard);
+    });
+  });
+
+  group('更多页的主题色四选一', () {
+    Future<AppState> pumpMore(WidgetTester tester) async {
+      final state = AppState();
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: buildTheme(Brightness.light, defaultSeedColor),
+          home: MoreScreen(state: state),
+        ),
+      );
+      await tester.pumpAndSettle();
+      return state;
+    }
+
+    testWidgets('四格都在，留空格标着待定', (tester) async {
+      await pumpMore(tester);
+      expect(find.text('默认'), findsOneWidget);
+      expect(find.text('深绿'), findsOneWidget);
+      expect(find.text('紫色'), findsOneWidget);
+      expect(find.text('待定'), findsOneWidget);
+    });
+
+    testWidgets('点深绿就换主题，落盘值跟着变', (tester) async {
+      final state = await pumpMore(tester);
+      await tester.tap(find.text('深绿'));
+      await tester.pumpAndSettle();
+      expect(state.settings.themePreset, 'green');
+    });
+
+    testWidgets('点留空的格子只弹提示，主题不动', (tester) async {
+      final state = await pumpMore(tester);
+      await tester.tap(find.text('待定'));
+      await tester.pump();
+      expect(find.text('这一格先留空，想好加什么颜色再放进来'), findsOneWidget);
+      expect(state.settings.themePreset, 'default');
     });
   });
 

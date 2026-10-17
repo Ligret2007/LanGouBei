@@ -264,19 +264,12 @@ class AppState extends ChangeNotifier {
     await _saveNow();
   }
 
-  /// 主题色：拖动色轮时高频调用，用防抖写盘
-  void setSeed({double? hue, double? saturation, double? lightness}) {
-    if (hue != null) settings.seedHue = hue;
-    if (saturation != null) settings.seedSaturation = saturation;
-    if (lightness != null) settings.seedLightness = lightness;
-    notifyListeners();
-    _scheduleSave();
-  }
-
-  Future<void> resetSeed() async {
-    settings.seedHue = 229;
-    settings.seedSaturation = 1.0;
-    settings.seedLightness = 0.55;
+  /// 主题色四选一；留空的格子不接受选中
+  Future<void> setThemePreset(String id) async {
+    final preset = presetById(id);
+    if (preset.reserved) return;
+    if (settings.themePreset == preset.id) return;
+    settings.themePreset = preset.id;
     notifyListeners();
     await _saveNow();
   }
@@ -284,20 +277,13 @@ class AppState extends ChangeNotifier {
   /// 清空学习进度，但保留外观偏好
   Future<void> resetAll() async {
     final mode = settings.themeMode;
-    final hue = settings.seedHue;
-    final sat = settings.seedSaturation;
-    final light = settings.seedLightness;
+    final preset = settings.themePreset;
 
     progress = {};
     daily = {};
     streak = 0;
     lastStudyDay = null;
-    settings = Settings(
-      themeMode: mode,
-      seedHue: hue,
-      seedSaturation: sat,
-      seedLightness: light,
-    );
+    settings = Settings(themeMode: mode, themePreset: preset);
     notifyListeners();
     await _saveNow();
   }

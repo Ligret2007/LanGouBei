@@ -25,7 +25,7 @@ class LangoBeiApp extends StatelessWidget {
       listenable: state,
       builder: (context, _) {
         final s = state.settings;
-        final seed = seedColorFrom(s.seedHue, s.seedSaturation, s.seedLightness);
+        final seed = seedForPreset(presetById(s.themePreset));
         return MaterialApp(
           title: 'LangoBei',
           debugShowCheckedModeBanner: false,

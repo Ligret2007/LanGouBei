@@ -1,9 +1,10 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/word.dart';
 import '../theme.dart';
-import '../widgets/hsl_color_wheel.dart';
 
 /// 更多：外观（深浅色 + 主题色）、当前设置、重置入口
 class MoreScreen extends StatelessWidget {
@@ -15,7 +16,8 @@ class MoreScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final s = state.settings;
-    final seed = seedColorFrom(s.seedHue, s.seedSaturation, s.seedLightness);
+    final preset = presetById(s.themePreset);
+    final seed = seedForPreset(preset);
     final counts = state.levelCounts;
 
     return Scaffold(
@@ -82,74 +84,25 @@ class MoreScreen extends StatelessWidget {
                           style: theme.textTheme.bodyMedium
                               ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                       const Spacer(),
-                      Container(
-                        width: 18,
-                        height: 18,
-                        decoration: BoxDecoration(
-                          color: seed,
-                          shape: BoxShape.circle,
-                          border: Border.all(
-                            color: theme.colorScheme.outlineVariant,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
                       Text(
-                        'HSL ${s.seedHue.round()}° · ${(s.seedSaturation * 100).round()}% · ${(s.seedLightness * 100).round()}%',
+                        '${preset.label} · ${_hex(seed)}',
                         style: theme.textTheme.labelSmall
                             ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
                   const SizedBox(height: 14),
-                  Center(
-                    child: HslColorWheel(
-                      hue: s.seedHue,
-                      saturation: s.seedSaturation,
-                      lightness: s.seedLightness,
-                      size: 226,
-                      onChanged: (hue, sat) => state.setSeed(hue: hue, saturation: sat),
-                    ),
-                  ),
-                  const SizedBox(height: 14),
                   Row(
                     children: [
-                      Text('明度',
-                          style: theme.textTheme.labelMedium
-                              ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                      Expanded(
-                        child: Slider(
-                          value: s.seedLightness,
-                          min: 0.2,
-                          max: 0.8,
-                          divisions: 60,
-                          label: '${(s.seedLightness * 100).round()}%',
-                          onChanged: (v) => state.setSeed(lightness: v),
-                          onChangeEnd: (_) => state.flush(),
+                      for (final p in kThemePresets)
+                        Expanded(
+                          child: _PresetSwatch(
+                            preset: p,
+                            selected: p.id == preset.id,
+                            onTap: () => _pickPreset(context, p),
+                          ),
                         ),
-                      ),
-                      SizedBox(
-                        width: 82,
-                        child: Text(
-                          _hex(seed),
-                          textAlign: TextAlign.right,
-                          style: theme.textTheme.labelSmall
-                              ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                        ),
-                      ),
                     ],
-                  ),
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TextButton.icon(
-                      onPressed: state.resetSeed,
-                      icon: const Icon(Icons.restart_alt_rounded, size: 16),
-                      label: const Text('恢复默认色'),
-                      style: TextButton.styleFrom(
-                        visualDensity: VisualDensity.compact,
-                        textStyle: const TextStyle(fontSize: 12),
-                      ),
-                    ),
                   ),
                 ],
               ),
@@ -267,6 +220,19 @@ class MoreScreen extends StatelessWidget {
     );
   }
 
+  void _pickPreset(BuildContext context, ThemePreset p) {
+    if (p.reserved) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(const SnackBar(
+          content: Text('这一格先留空，想好加什么颜色再放进来'),
+          duration: Duration(seconds: 2),
+        ));
+      return;
+    }
+    state.setThemePreset(p.id);
+  }
+
   void _confirmReset(BuildContext context) {
     showDialog<void>(
       context: context,
@@ -286,4 +252,106 @@ class MoreScreen extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 主题色色块：留空的那格画成虚线圈，点了只给提示
+class _PresetSwatch extends StatelessWidget {
+  final ThemePreset preset;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _PresetSwatch({
+    required this.preset,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final color = seedForPreset(preset);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: preset.reserved ? '${preset.label}（未启用）' : '主题色 ${preset.label}',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: Column(
+            children: [
+              SizedBox(
+                width: 46,
+                height: 46,
+                child: preset.reserved
+                    ? CustomPaint(
+                        painter: _DashedCirclePainter(
+                          color: theme.colorScheme.outlineVariant,
+                        ),
+                      )
+                    : Container(
+                        decoration: BoxDecoration(
+                          color: color,
+                          shape: BoxShape.circle,
+                          border: selected
+                              ? Border.all(color: theme.colorScheme.onSurface, width: 3)
+                              : null,
+                        ),
+                        child: selected
+                            ? const Icon(Icons.check_rounded, size: 22, color: Colors.white)
+                            : null,
+                      ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                preset.label,
+                style: theme.textTheme.labelSmall?.copyWith(
+                  color: preset.reserved
+                      ? theme.colorScheme.outline
+                      : selected
+                          ? theme.colorScheme.onSurface
+                          : theme.colorScheme.onSurfaceVariant,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DashedCirclePainter extends CustomPainter {
+  final Color color;
+
+  _DashedCirclePainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2
+      ..strokeCap = StrokeCap.round;
+    final center = size.center(Offset.zero);
+    final radius = size.width / 2 - 2;
+    const dashes = 16;
+    for (var i = 0; i < dashes; i++) {
+      final start = (i / dashes) * 2 * math.pi;
+      final sweep = (2 * math.pi / dashes) * 0.55;
+      canvas.drawArc(
+        Rect.fromCircle(center: center, radius: radius),
+        start,
+        sweep,
+        false,
+        paint,
+      );
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _DashedCirclePainter old) => old.color != color;
 }

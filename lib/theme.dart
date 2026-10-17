@@ -1,10 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-/// 默认主题色（HSL 229 / 100% / 55%）
-const double kDefaultHue = 229;
-const double kDefaultSaturation = 1.0;
-const double kDefaultLightness = 0.55;
+import 'models/word.dart';
 
 const Color kAccent = Color(0xFFFF8A3D);
 const Color kGood = Color(0xFF30A46C);
@@ -34,7 +31,7 @@ Color levelColor(String level, Brightness brightness) {
   };
 }
 
-/// 由 HSL 得到种子色；色轮只改 H/S，明度走单独滑杆
+/// 由 HSL 得到种子色；预设色值都用 HSL 描述，以后要加自定义取色可以直接复用
 Color seedColorFrom(double hue, double saturation, double lightness) {
   return HSLColor.fromAHSL(
     1,
@@ -44,8 +41,10 @@ Color seedColorFrom(double hue, double saturation, double lightness) {
   ).toColor();
 }
 
-Color get defaultSeedColor =>
-    seedColorFrom(kDefaultHue, kDefaultSaturation, kDefaultLightness);
+Color seedForPreset(ThemePreset preset) =>
+    seedColorFrom(preset.hue, preset.saturation, preset.lightness);
+
+Color get defaultSeedColor => seedForPreset(kThemePresets.first);
 
 ThemeData buildTheme(Brightness brightness, Color seed) {
   final scheme = ColorScheme.fromSeed(
