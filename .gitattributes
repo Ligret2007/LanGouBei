@@ -1,0 +1,11 @@
+# 统一用 LF 存进仓库（Flutter/Dart 在 Windows 上默认 CRLF 会一直弹警告）
+* text=auto eol=lf
+
+# 二进制别动
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.jar binary
+*.apk binary
+*.keystore binary
+gradlew binary

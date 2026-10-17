@@ -2,8 +2,19 @@
 
 高考英语背单词 App，按桌面《修改方案》从零重写。Flutter 3.47 / Android，词库是桌面那份《高考英语3500词》。
 
-## 一、按方案做的事
+## 界面预览
 
+| 引导 · 词库 | 引导 · 高考年份 | 知新 · 翻开释义 |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/02-onboarding-bank.png" width="230"> | <img src="docs/screenshots/03-onboarding-year.png" width="230"> | <img src="docs/screenshots/05-study-reveal.png" width="230"> |
+
+| 量化 · 7 日成果 | 更多 · 词库 / 数据 | 外观 · 主题色四选一 |
+| :---: | :---: | :---: |
+| <img src="docs/screenshots/08-quant-7day.png" width="230"> | <img src="docs/screenshots/12-more.png" width="230"> | <img src="docs/screenshots/09-theme-presets.png" width="230"> |
+
+其余截图（引导介绍 / 就绪、错题插入、反思空状态、深色模式、改高考年份）都在 [docs/screenshots](docs/screenshots) 里。
+
+## 一、按方案做的事
 ### 1. 改名与引导
 - 应用名 **LangoBei**，包名 `com.codingtools.langobei`
 - 首次启动四页引导（**没有「跳过」按钮**，四页都得走一遍）：
