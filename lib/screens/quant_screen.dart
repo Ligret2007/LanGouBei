@@ -16,6 +16,9 @@ class QuantScreen extends StatelessWidget {
     final days = state.daysToExam;
     final recent = state.recentDays(7);
     final maxChoices = recent.fold<int>(1, (m, e) => e.value.choices > m ? e.value.choices : m);
+    final weekChoices = recent.fold<int>(0, (s, e) => s + e.value.choices);
+    final weekCorrect = recent.fold<int>(0, (s, e) => s + e.value.correct);
+    final weekAccuracy = weekChoices == 0 ? 0 : weekCorrect / weekChoices;
 
     return Scaffold(
       body: SafeArea(
@@ -155,8 +158,22 @@ class QuantScreen extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            Text('最近七天选择次数',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Text('7 日成果',
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const Spacer(),
+                Text(
+                  weekChoices == 0
+                      ? '这 7 天还没开始'
+                      : '$weekChoices 次选择 · 正确率 ${(weekAccuracy * 100).round()}%',
+                  style: theme.textTheme.labelMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
             const SizedBox(height: 12),
             SurfaceCard(
               child: SizedBox(

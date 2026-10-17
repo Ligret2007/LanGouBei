@@ -7,6 +7,8 @@ import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 import '../app_state.dart';
 import '../export_service.dart';
 import '../models/word.dart';
+import '../widgets/bank_option.dart';
+import '../widgets/year_wheel.dart';
 import '../theme.dart';
 
 /// 更多：外观（深浅色 + 主题色）、当前设置、重置入口
@@ -112,6 +114,39 @@ class MoreScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
 
+            // ---------------- 词库选择 ----------------
+            SurfaceCard(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('词库',
+                      style: theme.textTheme.titleSmall
+                          ?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                  for (final bank in const [kBankCore, kBankExt]) ...[
+                    BankOption(
+                      title: bankTitle(bank),
+                      subtitle: bankSubtitle(bank),
+                      selected: s.bank == bank,
+                      onTap: () => _switchBank(context, bank),
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                  for (final planned in kPlannedBanks) ...[
+                    BankOption(
+                      title: planned.title,
+                      subtitle: planned.subtitle,
+                      selected: false,
+                      disabled: true,
+                      onTap: () {},
+                    ),
+                    const SizedBox(height: 10),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+
             // ---------------- 当前设置 ----------------
             SurfaceCard(
               child: Column(
@@ -121,9 +156,15 @@ class MoreScreen extends StatelessWidget {
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  _row(theme, '词库', s.bank == 'ext' ? '高考词汇（高分）' : '高考词汇（保底）'),
+                  _row(theme, '词库', bankTitle(s.bank)),
                   _row(theme, '词数', '${state.bankTotal} 词'),
-                  _row(theme, '高考年份', s.examYear == null ? '不参加' : '${s.examYear} 年'),
+                  _editableRow(
+                    context,
+                    theme,
+                    '高考年份',
+                    s.examYear == null ? '未设置' : '${s.examYear} 年',
+                    () => _editExamYear(context),
+                  ),
                   const SizedBox(height: 12),
                   Text('分级',
                       style: theme.textTheme.bodyMedium
@@ -154,12 +195,6 @@ class MoreScreen extends StatelessWidget {
                   Text('数据',
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Text(
-                    '把学习进度、每日记录和外观设置导出成一个 JSON 文件，存到手机的「下载」目录，方便备份或发给我帮你分析。',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.6),
-                  ),
                   const SizedBox(height: 14),
                   Row(
                     children: [
@@ -197,23 +232,6 @@ class MoreScreen extends StatelessWidget {
                         textStyle: const TextStyle(fontSize: 12),
                       ),
                     ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 14),
-            SurfaceCard(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('这里先留白',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 6),
-                  Text(
-                    '账号同步、发音设置、免打扰时段、导出词表（CSV）这些还没做，先放着。',
-                    style: theme.textTheme.bodySmall
-                        ?.copyWith(color: theme.colorScheme.onSurfaceVariant, height: 1.6),
                   ),
                 ],
               ),
@@ -278,6 +296,111 @@ class MoreScreen extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// 可点的一行：右边带个「改」的箭头，点开弹年份滚轮
+  Widget _editableRow(
+    BuildContext context,
+    ThemeData theme,
+    String label,
+    String value,
+    VoidCallback onTap,
+  ) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            Text(label,
+                style: theme.textTheme.bodyMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const Spacer(),
+            Text(value,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: theme.colorScheme.primary,
+                )),
+            const SizedBox(width: 4),
+            Icon(Icons.edit_rounded, size: 15, color: theme.colorScheme.primary),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 改高考年份：底部弹出同一个滚轮
+  Future<void> _editExamYear(BuildContext context) async {
+    final theme = Theme.of(context);
+    var picked = clampExamYear(state.settings.examYear);
+    final controller =
+        FixedExtentScrollController(initialItem: picked - kExamYearMin);
+
+    final ok = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (sheetContext) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text('哪一年参加高考？',
+                  style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+              const SizedBox(height: 8),
+              StatefulBuilder(
+                builder: (context, setSheetState) => YearWheel(
+                  controller: controller,
+                  value: picked,
+                  onChanged: (y) => setSheetState(() => picked = y),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Navigator.pop(sheetContext, false),
+                      child: const Text('取消'),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () => Navigator.pop(sheetContext, true),
+                      child: const Text('保存'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    controller.dispose();
+    if (ok != true || !context.mounted) return;
+    await state.setExamYear(picked);
+    if (!context.mounted) return;
+    _toast(context, '高考年份已改为 $picked 年');
+  }
+
+  /// 切换词库：换完提示一句，已经背过的词仍然是背过的
+  Future<void> _switchBank(BuildContext context, String bank) async {
+    final before = state.bankTotal;
+    await state.setBank(bank);
+    if (!context.mounted) return;
+    final delta = state.bankTotal - before;
+    final tip = delta == 0
+        ? '已切到「${bankTitle(bank)}」'
+        : '已切到「${bankTitle(bank)}」，${delta > 0 ? '增加' : '减少'} ${delta.abs()} 个词';
+    _toast(context, '$tip，知新会按新词库重新排队');
   }
 
   void _toast(BuildContext context, String text, {SnackBarAction? action}) {

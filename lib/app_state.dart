@@ -264,6 +264,23 @@ class AppState extends ChangeNotifier {
     await _saveNow();
   }
 
+  /// 切换词库（菜鸟 / 大神）。进度按单词 id 存，换库不会丢已经背过的词
+  Future<void> setBank(String bank) async {
+    final target = bank == kBankExt ? kBankExt : kBankCore;
+    if (settings.bank == target) return;
+    settings.bank = target;
+    notifyListeners();
+    await _saveNow();
+  }
+
+  /// 修改高考年份（更多页里也能改）
+  Future<void> setExamYear(int? year) async {
+    if (settings.examYear == year) return;
+    settings.examYear = year;
+    notifyListeners();
+    await _saveNow();
+  }
+
   /// 主题色四选一；留空的格子不接受选中
   Future<void> setThemePreset(String id) async {
     final preset = presetById(id);

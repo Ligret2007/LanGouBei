@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../models/word.dart';
+import '../widgets/bank_option.dart';
+import '../widgets/year_wheel.dart';
 import '../theme.dart';
 
 /// 首次启动的四页引导
@@ -15,24 +18,28 @@ class OnboardingScreen extends StatefulWidget {
 
 class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _controller = PageController();
+
+  /// 年份滚轮（2027-2040）的控制器，初值停在第一年
+  final FixedExtentScrollController _yearController =
+      FixedExtentScrollController(initialItem: 0);
   int _page = 0;
 
-  String _bank = 'core';
-  bool? _attendingExam;
-  int? _examYear;
+  String _bank = kBankCore;
+  int _examYear = kExamYearMin;
 
   static const int _pages = 4;
 
   bool get _canNext => switch (_page) {
         0 => true,
         1 => true,
-        2 => _attendingExam == false || (_attendingExam == true && _examYear != null),
+        2 => true,
         _ => true,
       };
 
   @override
   void dispose() {
     _controller.dispose();
+    _yearController.dispose();
     super.dispose();
   }
 
@@ -40,10 +47,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     if (_page < _pages - 1) {
       _controller.nextPage(duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
     } else {
-      widget.state.completeOnboarding(
-        bank: _bank,
-        examYear: _attendingExam == true ? _examYear : null,
-      );
+      widget.state.completeOnboarding(bank: _bank, examYear: _examYear);
     }
   }
 
@@ -63,15 +67,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                       style: theme.textTheme.titleMedium
                           ?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
                   const Spacer(),
-                  if (_page > 0)
-                    TextButton(
-                      onPressed: () => _controller.animateToPage(
-                        _pages - 1,
-                        duration: const Duration(milliseconds: 320),
-                        curve: Curves.easeOutCubic,
-                      ),
-                      child: const Text('跳过'),
-                    ),
                 ],
               ),
             ),
@@ -176,124 +171,75 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           Text('选一个词库',
               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
           const SizedBox(height: 6),
-          Text('之后可以在「我的」里重新设置',
+          Text('之后可以在「更多」里随时切换，已经背过的词不会丢',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 22),
-          _BankOption(
-            title: '高考词汇（保底）',
-            subtitle: '3014 词 · 基础到进阶，覆盖高考高频',
-            selected: _bank == 'core',
-            onTap: () => setState(() => _bank = 'core'),
-          ),
-          const SizedBox(height: 12),
-          _BankOption(
-            title: '高考词汇（高分）',
-            subtitle: '3540 词 · 在保底基础上加 526 个拓展词',
-            selected: _bank == 'ext',
-            onTap: () => setState(() => _bank = 'ext'),
-          ),
-          const SizedBox(height: 12),
-          _BankOption(
-            title: '四级词汇',
-            subtitle: '暂未开放',
-            selected: false,
-            disabled: true,
-            onTap: () {},
-          ),
-          const SizedBox(height: 12),
-          _BankOption(
-            title: '雅思 6.5 词汇',
-            subtitle: '暂未开放',
-            selected: false,
-            disabled: true,
-            onTap: () {},
-          ),
+          for (final bank in const [kBankCore, kBankExt]) ...[
+            BankOption(
+              title: bankTitle(bank),
+              subtitle: bankSubtitle(bank),
+              selected: _bank == bank,
+              onTap: () => setState(() => _bank = bank),
+            ),
+            const SizedBox(height: 12),
+          ],
+          // 还没开放、先占位
+          for (final planned in kPlannedBanks) ...[
+            BankOption(
+              title: planned.title,
+              subtitle: planned.subtitle,
+              selected: false,
+              disabled: true,
+              onTap: () {},
+            ),
+            const SizedBox(height: 12),
+          ],
         ],
       ),
     );
   }
 
-  // ---------------- 第 3 页：高考 ----------------
+  // ---------------- 第 3 页：高考年份（滚动选择） ----------------
   Widget _examPage(ThemeData theme) {
-    final now = DateTime.now().year;
-    final years = [now + 1, now + 2, now + 3];
     final today = DateTime.now();
-    final days = _examYear == null
-        ? null
-        : DateTime(_examYear!, 6, 7)
-            .difference(DateTime(today.year, today.month, today.day))
-            .inDays;
+    final days = DateTime(_examYear, 6, 7)
+        .difference(DateTime(today.year, today.month, today.day))
+        .inDays;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(24, 28, 24, 12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('是否即将参加高考？',
+          Text('哪一年参加高考？',
               style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
           const SizedBox(height: 6),
-          Text('选了「是」之后，加载页会显示倒计时',
+          Text('上下滚动选年份，加载页会按它显示倒计时',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-          const SizedBox(height: 24),
-          Row(
-            children: [
-              Expanded(
-                child: _ChoiceTile(
-                  label: '是',
-                  selected: _attendingExam == true,
-                  onTap: () => setState(() => _attendingExam = true),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ChoiceTile(
-                  label: '否',
-                  selected: _attendingExam == false,
-                  onTap: () => setState(() {
-                    _attendingExam = false;
-                    _examYear = null;
-                  }),
-                ),
-              ),
-            ],
+          const SizedBox(height: 18),
+          YearWheel(
+            controller: _yearController,
+            value: _examYear,
+            onChanged: (y) => setState(() => _examYear = y),
           ),
-          if (_attendingExam == true) ...[
-            const SizedBox(height: 28),
-            Text('哪一年高考？',
-                style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 10,
-              runSpacing: 10,
-              children: years.map((y) {
-                final selected = _examYear == y;
-                return ChoiceChip(
-                  label: Text('$y 年'),
-                  selected: selected,
-                  onSelected: (_) => setState(() => _examYear = y),
-                );
-              }).toList(),
+          const SizedBox(height: 18),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primary.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(14),
             ),
-            const SizedBox(height: 16),
-            if (_examYear != null && days != null)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
+            child: Row(
+              children: [
+                Icon(Icons.event_rounded, size: 18, color: theme.colorScheme.primary),
+                const SizedBox(width: 8),
+                Text(
+                  '距离 $_examYear 年高考还有 ${days < 0 ? 0 : days} 天',
+                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
                 ),
-                child: Row(
-                  children: [
-                    Icon(Icons.event_rounded, size: 18, color: theme.colorScheme.primary),
-                    const SizedBox(width: 8),
-                    Text(
-                      '距离 $_examYear 年高考还有 $days 天',
-                      style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.primary),
-                    ),
-                  ],
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ],
       ),
     );
@@ -324,113 +270,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const SizedBox(height: 26),
           Text(
-            _attendingExam == true && _examYear != null
-                ? '$_examYear 年高考 · ${_bank == 'ext' ? '高考词汇（高分）' : '高考词汇（保底）'}'
-                : '词库：${_bank == 'ext' ? '高考词汇（高分）' : '高考词汇（保底）'}',
+            '$_examYear 年高考 · ${bankTitle(_bank)}',
             style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _BankOption extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final bool selected;
-  final bool disabled;
-  final VoidCallback onTap;
-
-  const _BankOption({
-    required this.title,
-    required this.subtitle,
-    required this.selected,
-    required this.onTap,
-    this.disabled = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final borderColor = selected
-        ? theme.colorScheme.primary
-        : theme.colorScheme.outlineVariant.withValues(alpha: 0.7);
-    final fg = disabled ? theme.colorScheme.outline : theme.colorScheme.onSurface;
-
-    return Opacity(
-      opacity: disabled ? 0.55 : 1,
-      child: InkWell(
-        onTap: disabled ? null : onTap,
-        borderRadius: BorderRadius.circular(18),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
-          decoration: BoxDecoration(
-            color: selected ? theme.colorScheme.primary.withValues(alpha: 0.08) : theme.colorScheme.surface,
-            borderRadius: BorderRadius.circular(18),
-            border: Border.all(color: borderColor, width: selected ? 2 : 1),
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: theme.textTheme.titleMedium
-                            ?.copyWith(fontWeight: FontWeight.w700, color: fg)),
-                    const SizedBox(height: 4),
-                    Text(subtitle,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                  ],
-                ),
-              ),
-              if (selected)
-                Icon(Icons.check_circle_rounded, color: theme.colorScheme.primary)
-              else if (disabled)
-                TagChip('敬请期待')
-              else
-                Icon(Icons.circle_outlined, color: theme.colorScheme.outlineVariant),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ChoiceTile extends StatelessWidget {
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  const _ChoiceTile({required this.label, required this.selected, required this.onTap});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 26),
-        alignment: Alignment.center,
-        decoration: BoxDecoration(
-          color: selected ? theme.colorScheme.primary.withValues(alpha: 0.10) : theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(
-            color: selected
-                ? theme.colorScheme.primary
-                : theme.colorScheme.outlineVariant.withValues(alpha: 0.7),
-            width: selected ? 2 : 1,
-          ),
-        ),
-        child: Text(label,
-            style: theme.textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: selected ? theme.colorScheme.primary : theme.colorScheme.onSurface,
-            )),
       ),
     );
   }

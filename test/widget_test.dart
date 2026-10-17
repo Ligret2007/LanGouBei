@@ -7,6 +7,9 @@ import 'package:langobei/theme.dart';
 import 'package:langobei/export_service.dart';
 import 'package:langobei/screens/more_screen.dart';
 import 'package:langobei/screens/study_screen.dart';
+import 'package:langobei/screens/onboarding_screen.dart';
+import 'package:langobei/widgets/bank_option.dart';
+import 'package:langobei/widgets/year_wheel.dart';
 import 'package:langobei/widgets/flip_card.dart';
 import 'package:langobei/app_state.dart';
 import 'package:langobei/models/word.dart';
@@ -319,6 +322,256 @@ void main() {
     });
   });
 
+  group('词库与引导', () {
+    test('两套词库的名字与解释', () {
+      expect(bankTitle(kBankCore), '高考：我是菜鸟');
+      expect(bankTitle(kBankExt), '高考：我是大神');
+      expect(bankSubtitle(kBankCore), '3014 词 · 基础到进阶，覆盖高考高频');
+      expect(bankSubtitle(kBankExt), '3540 词 · 在菜鸟的基础上增加低频词');
+    });
+
+    test('年份滚轮的范围是 2027-2040', () {
+      expect(kExamYearMin, 2027);
+      expect(kExamYearMax, 2040);
+      expect(kExamYears.first, 2027);
+      expect(kExamYears.last, 2040);
+      expect(kExamYears.length, 14);
+    });
+
+    test('越界的年份会被收回区间', () {
+      expect(clampExamYear(null), 2027);
+      expect(clampExamYear(2026), 2027);
+      expect(clampExamYear(2033), 2033);
+      expect(clampExamYear(2041), 2040);
+    });
+
+    test('切换词库会改设置并通知', () async {
+      final s = AppState();
+      var notified = 0;
+      s.addListener(() => notified++);
+
+      await s.setBank(kBankExt);
+      expect(s.settings.bank, kBankExt);
+      await s.setBank(kBankExt);
+      expect(notified, 1, reason: '同一套词库重复选不该再通知');
+      await s.setBank('乱七八糟');
+      expect(s.settings.bank, kBankCore, reason: '非法值回落到菜鸟');
+    });
+
+    testWidgets('引导四页必须逐页点下一步', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: OnboardingScreen(state: AppState()),
+      ));
+      await tester.pumpAndSettle();
+
+      expect(find.text('跳过'), findsNothing);
+      expect(find.text('下一步'), findsOneWidget);
+    });
+
+    testWidgets('第二页是两套高考词库，选大神会带上年份走完引导', (tester) async {
+      final state = AppState();
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: OnboardingScreen(state: state),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+      expect(find.text('高考：我是菜鸟'), findsOneWidget);
+      expect(find.text('高考：我是大神'), findsOneWidget);
+      // 四级 / 雅思继续占位，但是点不动
+      expect(find.text('四级词汇'), findsOneWidget);
+      expect(find.text('雅思 6.5 词汇'), findsOneWidget);
+      expect(find.text('敬请期待'), findsNWidgets(2));
+
+      await tester.tap(find.text('高考：我是大神'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+
+      // 第三页：年份滚轮，默认第一年
+      expect(find.text('哪一年参加高考？'), findsOneWidget);
+      expect(find.byType(ListWheelScrollView), findsOneWidget);
+      expect(find.text('2027 年'), findsWidgets);
+
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('开始背单词'));
+      await tester.pumpAndSettle();
+
+      expect(state.settings.onboarded, isTrue);
+      expect(state.settings.bank, kBankExt);
+      expect(state.settings.examYear, 2027);
+    });
+
+    testWidgets('年份滚轮能滑到更晚的年份并带进设置', (tester) async {
+      final state = AppState();
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: OnboardingScreen(state: state),
+      ));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+      expect(find.textContaining('距离 2027 年高考'), findsOneWidget);
+
+      // 往上滑 = 往后选，一次拖三个刻度
+      await tester.drag(find.byType(ListWheelScrollView), const Offset(0, -168));
+      await tester.pumpAndSettle();
+
+      final chip = tester.widget<Text>(find.textContaining('年高考还有')).data!;
+      final picked = int.parse(RegExp(r'距离 (\d+) 年高考').firstMatch(chip)!.group(1)!);
+      expect(picked, greaterThan(2027), reason: '滑动之后不该还停在 2027');
+
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('开始背单词'));
+      await tester.pumpAndSettle();
+      expect(state.settings.examYear, picked);
+    });
+
+    testWidgets('滚轮只有 2027-2040，往回滑不会跑出范围', (tester) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: OnboardingScreen(state: AppState()),
+      ));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('下一步'));
+      await tester.pumpAndSettle();
+
+      final wheel = tester.widget<ListWheelScrollView>(find.byType(ListWheelScrollView));
+      expect(wheel.childDelegate.estimatedChildCount, 14);
+
+      await tester.drag(find.byType(ListWheelScrollView), const Offset(0, 2000));
+      await tester.pumpAndSettle();
+      expect(find.text('2026 年'), findsNothing);
+      expect(find.textContaining('距离 2027 年高考'), findsOneWidget, reason: '到顶就停在 2027');
+    });
+  });
+
+  group('更多页', () {
+    Future<AppState> pumpMore(WidgetTester tester, {AppState? state}) async {
+      final s = state ?? AppState();
+      // App 里是外层 Shell 监听状态后重建页面，这里补上同样的监听
+      await tester.pumpWidget(MaterialApp(
+        theme: buildTheme(Brightness.light, defaultSeedColor),
+        home: ListenableBuilder(
+          listenable: s,
+          builder: (context, _) => MoreScreen(state: s),
+        ),
+      ));
+      await tester.pumpAndSettle();
+      return s;
+    }
+
+    /// 页面比测试视口长，列表懒加载；没构建出来就先滚到它出现
+    Future<void> scrollTo(WidgetTester tester, Finder finder) async {
+      if (finder.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          finder,
+          220,
+          scrollable: find.byType(Scrollable).first,
+        );
+      } else {
+        await tester.ensureVisible(finder);
+      }
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('更多页只有功能卡片，没有留白卡片与数据说明', (tester) async {
+      await pumpMore(tester);
+      expect(find.text('这里先留白'), findsNothing);
+      expect(find.textContaining('账号同步'), findsNothing);
+      expect(find.textContaining('把学习进度、每日记录和外观设置导出成一个 JSON 文件'), findsNothing);
+    });
+
+    testWidgets('更多里能切词库', (tester) async {
+      final s = await pumpMore(tester);
+      expect(s.settings.bank, kBankCore);
+
+      await tester.ensureVisible(find.text('高考：我是大神'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('高考：我是大神'));
+      await tester.pumpAndSettle();
+
+      expect(s.settings.bank, kBankExt);
+      expect(find.textContaining('已切到「高考：我是大神」'), findsOneWidget);
+    });
+
+    testWidgets('四级与雅思词库为占位，点了不动作', (tester) async {
+      final s = await pumpMore(tester);
+
+      final options = tester.widgetList<BankOption>(find.byType(BankOption)).toList();
+      expect(options.length, 4, reason: '菜鸟 / 大神 + 四级 / 雅思占位');
+      expect(options.map((o) => o.title).toList(), [
+        '高考：我是菜鸟',
+        '高考：我是大神',
+        '四级词汇',
+        '雅思 6.5 词汇',
+      ]);
+      expect(options[0].disabled, isFalse);
+      expect(options[1].disabled, isFalse);
+      expect(options[2].disabled, isTrue);
+      expect(options[3].disabled, isTrue);
+      expect(find.text('敬请期待'), findsNWidgets(2));
+
+      // 点占位不会改词库
+      await tester.ensureVisible(find.text('四级词汇'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('四级词汇'));
+      await tester.pumpAndSettle();
+      expect(s.settings.bank, kBankCore);
+    });
+
+    testWidgets('点高考年份能弹滚轮改年份', (tester) async {
+      final s = await pumpMore(tester);
+      expect(s.settings.examYear, isNull);
+
+      await scrollTo(tester, find.text('高考年份'));
+      expect(find.text('未设置'), findsOneWidget);
+
+      await tester.tap(find.text('高考年份'));
+      await tester.pumpAndSettle();
+      expect(find.byType(YearWheel), findsOneWidget);
+      expect(find.text('2027 年'), findsWidgets);
+
+      await tester.drag(find.byType(YearWheel), const Offset(0, -168));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+
+      expect(s.settings.examYear, greaterThan(2027));
+      expect(find.textContaining('高考年份已改为'), findsOneWidget);
+
+      // 关掉弹窗后列表可能又滚走了，滚回来再看这一行
+      await scrollTo(tester, find.text('高考年份'));
+      expect(find.text('${s.settings.examYear} 年'), findsOneWidget);
+      expect(find.text('未设置'), findsNothing);
+    });
+
+    testWidgets('弹窗点取消不改年份', (tester) async {
+      final s = await pumpMore(tester);
+
+      await scrollTo(tester, find.text('高考年份'));
+      await tester.tap(find.text('高考年份'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(YearWheel), const Offset(0, -168));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+
+      expect(s.settings.examYear, isNull);
+      expect(find.text('未设置'), findsOneWidget);
+    });
+  });
+
   group('导出用户数据', () {
     AppState sample() {
       final s = AppState();
@@ -354,10 +607,19 @@ void main() {
       return s;
     }
 
-    /// 按钮在长页面下半部分，测试视口装不下，先滚到可见再点
+    /// 按钮在长页面下半部分，测试视口装不下；列表是懒加载的，
+    /// 所以还没构建出来时要先滚到它出现为止
     Future<void> tapButton(WidgetTester tester, String label) async {
       final finder = find.text(label);
-      await tester.ensureVisible(finder);
+      if (finder.evaluate().isEmpty) {
+        await tester.scrollUntilVisible(
+          finder,
+          260,
+          scrollable: find.byType(Scrollable).first,
+        );
+      } else {
+        await tester.ensureVisible(finder);
+      }
       await tester.pumpAndSettle();
       await tester.tap(finder);
       await tester.pumpAndSettle();

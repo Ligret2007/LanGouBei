@@ -6,10 +6,10 @@
 
 ### 1. 改名与引导
 - 应用名 **LangoBei**，包名 `com.codingtools.langobei`
-- 首次启动四页引导：
+- 首次启动四页引导（**没有「跳过」按钮**，四页都得走一遍）：
   1. 介绍页：主标语「源于世界上最负责的英语老师催促我背单词」，小字 `github 开源：LangoBei`，底部落款「——高三生 Ligret」
-  2. 词库选择：高考词汇（保底）3014 词 / 高考词汇（高分）3540 词；四级、雅思 6.5 已预留入口并标「敬请期待」
-  3. 是否即将参加高考：选「是」后再选年份（2027 / 2028 / 2029），并实时显示剩余天数
+  2. 词库选择：**高考：我是菜鸟**（3014 词 · 基础到进阶，覆盖高考高频）/ **高考：我是大神**（3540 词 · 在菜鸟的基础上增加低频词）；四级、雅思 6.5 继续预留入口并标「敬请期待」（点了不动）
+  3. **哪一年参加高考**：滚动式年份选择器，上下滑动选 **2027–2040**，下面实时显示剩余天数
   4. 「一切准备就绪 / 祝你好运」，点「开始背单词」进入 App
 - 之后每次打开都有加载页，显示 **距离高考仅有 xx 天**
 
@@ -30,8 +30,8 @@
 | --- | --- |
 | **知新** | 卡片学习：翻面看释义 → 不认识 / 模糊 / 认识（+ 首轮的确定认识）。选「不认识」进错题本；换词时有右滑淡入动画；顶部显示今日次数、错题本数、已掌握数 |
 | **反思** | 与知新同样的布局，但只有「认识 / 不认识」两个选项，单词全部来自错题本；认识→移出，不认识→保留。错题本空了显示空状态 |
-| **量化** | 距离高考天数、已连续天数、今日正确率、已掌握数量 + 百分比进度条、错题本数量、最近七天每天选择次数的柱状图 |
-| **更多** | 外观设置（深色模式、主题色四选一）、当前词库/词数/高考年份、分级图例、**导出学习数据**、版本信息，以及「清空进度重新走引导」 |
+| **量化** | 距离高考天数、已连续天数、今日正确率、已掌握数量 + 百分比进度条、错题本数量、**7 日成果**（近 7 天每天的选择次数柱状图 + 「N 次选择 · 正确率 P%」汇总） |
+| **更多** | 外观设置（深色模式、主题色四选一）、**词库切换**（菜鸟 / 大神，四级与雅思占位）、当前设置（词库 / 词数 / 可点开改的高考年份 / 分级图例）、**导出学习数据**、版本信息，以及「清空进度重新走引导」 |
 
 ## 二、外观（更多 → 外观）
 
@@ -49,8 +49,11 @@
 
 - 字段：`word / phonetic / pos / meaning / level / tier`
 - `level`：easy 1553、normal 887、hard 574、extra 526
-- `tier`：`core`（easy+normal+hard = 3014 词，保底词库）/ `ext`（extra 526 词，高分词库在保底基础上追加）
+- `tier`：`core`（easy+normal+hard = 3014 词，界面上叫 **高考：我是菜鸟**）/ `ext`（extra 526 词，界面上叫 **高考：我是大神**，在菜鸟基础上加低频词）
+- **随时可换**：引导页第二页和「更多 → 词库」是同一组卡片（`widgets/bank_option.dart`）；进度按单词 id 存，换库不会丢已经背过的词，换完「知新」按新词库重新排队
+- 四级词汇、雅思 6.5 是**预留占位**（`models/word.dart` 的 `kPlannedBanks`），灰着标「敬请期待」，点了不动作
 - 分级在界面上**直接显示原文** `easy / normal / hard / extra`，并按 **easy 绿、normal 黄、hard 橙、extra 红** 上色（深浅色各一套，见 `theme.dart` 的 `levelColor`）；单词卡的正面与释义面都带这个标签，「更多 → 当前设置」里还有一整行四色图例带词数
+- 高考年份同样可以在「更多 → 当前设置」里点开改：弹出和引导页同一个滚轮（`widgets/year_wheel.dart`，2027–2040），保存后写盘
 
 重新生成：
 
@@ -108,16 +111,18 @@ lib/
   app_state.dart             词库、设置、学习档案、队列、算法、持久化
   export_service.dart        数据导出（JSON 组装 + 原生通道）
   theme.dart                 Material 3 主题
-  models/word.dart           Word / WordProgress / DayStat / Settings
+  models/word.dart           Word / WordProgress / DayStat / Settings，词库名单与年份区间
   widgets/flip_card.dart     3D 翻转卡（正面单词，背面释义）
+  widgets/bank_option.dart   词库选项卡片（引导页与「更多」共用）
+  widgets/year_wheel.dart    滚动式年份选择器（引导页与年份弹窗共用）
   screens/
-    onboarding_screen.dart   四页引导
+    onboarding_screen.dart   四页引导（不可跳过）
     splash_screen.dart       加载页 + 高考倒计时
     shell.dart               四个 tab
     study_screen.dart        知新
     reflect_screen.dart      反思
-    quant_screen.dart        量化
-    more_screen.dart         更多（外观设置 + 数据导出 + 关于）
+    quant_screen.dart        量化（含 7 日成果）
+    more_screen.dart         更多（外观 + 词库 / 年份 + 数据导出 + 关于）
 android/app/src/main/kotlin/com/codingtools/langobei/MainActivity.kt
                              原生通道：写「下载」目录、拉起分享面板
 ```
@@ -132,7 +137,7 @@ flutter pub get
 flutter run                 # 模拟器/真机热重载
 flutter build apk --release # 产物 build\app\outputs\flutter-apk\app-release.apk
 flutter analyze
-flutter test                # 49 个测试，覆盖三态判定、3 秒规则、分级配色、外观设置、白底不被主题色污染、数据导出
+flutter test                # 62 个测试，覆盖三态判定、3 秒规则、分级配色、外观设置、白底不被主题色污染、数据导出、词库切换与年份滚轮
 ```
 
 ## 七、已知情况

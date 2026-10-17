@@ -4,6 +4,36 @@ library;
 /// 词库分级：界面上直接用原文展示，配色见 theme.dart 的 [levelColor]
 const List<String> kLevels = ['easy', 'normal', 'hard', 'extra'];
 
+/// 两套词库的 id（存盘用）：core = 菜鸟，ext = 大神
+const String kBankCore = 'core';
+const String kBankExt = 'ext';
+
+/// 高考年份可选范围（滚动式年份选择器）
+const int kExamYearMin = 2027;
+const int kExamYearMax = 2040;
+
+List<int> get kExamYears =>
+    [for (var y = kExamYearMin; y <= kExamYearMax; y++) y];
+
+String bankTitle(String bank) => bank == kBankExt ? '高考：我是大神' : '高考：我是菜鸟';
+
+String bankSubtitle(String bank) =>
+    bank == kBankExt ? '3540 词 · 在菜鸟的基础上增加低频词' : '3014 词 · 基础到进阶，覆盖高考高频';
+
+/// 还没开放、先占位的词库（引导页和「更多」都展示，但点不动）
+const List<({String title, String subtitle})> kPlannedBanks = [
+  (title: '四级词汇', subtitle: '暂未开放'),
+  (title: '雅思 6.5 词汇', subtitle: '暂未开放'),
+];
+
+/// 高考年份统一收进合法区间，越界或为空都回落到第一年
+int clampExamYear(int? year) {
+  if (year == null) return kExamYearMin;
+  if (year < kExamYearMin) return kExamYearMin;
+  if (year > kExamYearMax) return kExamYearMax;
+  return year;
+}
+
 class Word {
   final String id;
   final String word;
