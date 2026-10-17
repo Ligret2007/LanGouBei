@@ -26,7 +26,7 @@ class MoreScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
             Text('更多',
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
             const SizedBox(height: 16),
 
             // ---------------- 外观 ----------------

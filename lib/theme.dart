@@ -46,16 +46,74 @@ Color seedForPreset(ThemePreset preset) =>
 
 Color get defaultSeedColor => seedForPreset(kThemePresets.first);
 
+/// 中性表面色：跟主题色无关，白色部分永远保持白
+const Color kLightScaffold = Color(0xFFF3F4F6);
+const Color kLightSurface = Colors.white;
+const Color kLightOnSurface = Color(0xFF1B1C1F);
+const Color kLightOnSurfaceVariant = Color(0xFF6C6E75);
+const Color kLightSurfaceLow = Color(0xFFFAFAFB);
+const Color kLightSurfaceHigh = Color(0xFFF0F1F3);
+const Color kLightOutline = Color(0xFFD6D8DE);
+
+const Color kDarkScaffold = Color(0xFF0F1013);
+const Color kDarkSurface = Color(0xFF191A1D);
+const Color kDarkOnSurface = Color(0xFFE9EAEC);
+const Color kDarkOnSurfaceVariant = Color(0xFFA7A9AF);
+const Color kDarkSurfaceLow = Color(0xFF141518);
+const Color kDarkSurfaceHigh = Color(0xFF232428);
+const Color kDarkOutline = Color(0xFF3A3C42);
+
+/// 中性灰种子：只用来生成"不带色"的表面与文字色
+const Color kNeutralSeed = Color(0xFF7C7D82);
+
+/// 表面色一律走中性色，只有 primary / secondary 这些"醒目位"用主题色
 ThemeData buildTheme(Brightness brightness, Color seed) {
-  final scheme = ColorScheme.fromSeed(
+  final isDark = brightness == Brightness.dark;
+
+  // 拿主题色生成强调色，拿中性灰生成底色
+  final accent = ColorScheme.fromSeed(
     seedColor: seed,
     brightness: brightness,
     secondary: kAccent,
   );
-  final isDark = brightness == Brightness.dark;
+  final neutral = ColorScheme.fromSeed(
+    seedColor: kNeutralSeed,
+    brightness: brightness,
+  );
+
+  final surface = isDark ? kDarkSurface : kLightSurface;
+
+  final scheme = neutral.copyWith(
+    // —— 醒目位：跟着主题色走 ——
+    primary: accent.primary,
+    onPrimary: accent.onPrimary,
+    primaryContainer: accent.primaryContainer,
+    onPrimaryContainer: accent.onPrimaryContainer,
+    inversePrimary: accent.inversePrimary,
+    tertiary: accent.tertiary,
+    onTertiary: accent.onTertiary,
+    secondary: kAccent,
+    onSecondary: Colors.white,
+    // —— 表面与文字：固定中性，白色永远是白 ——
+    surface: surface,
+    onSurface: isDark ? kDarkOnSurface : kLightOnSurface,
+    onSurfaceVariant: isDark ? kDarkOnSurfaceVariant : kLightOnSurfaceVariant,
+    surfaceContainerLowest: isDark ? const Color(0xFF0C0D0F) : Colors.white,
+    surfaceContainerLow: isDark ? kDarkSurfaceLow : kLightSurfaceLow,
+    surfaceContainer: isDark ? kDarkSurface : kLightSurface,
+    surfaceContainerHigh: isDark ? kDarkSurfaceHigh : kLightSurfaceHigh,
+    surfaceContainerHighest: isDark ? const Color(0xFF2A2B30) : const Color(0xFFE9EAEE),
+    surfaceDim: isDark ? kDarkScaffold : const Color(0xFFE6E7EB),
+    surfaceBright: isDark ? const Color(0xFF33353A) : Colors.white,
+    outline: isDark ? kDarkOutline : kLightOutline,
+    outlineVariant: isDark ? const Color(0xFF2C2E33) : const Color(0xFFE4E6EA),
+    scrim: Colors.black,
+    shadow: Colors.black,
+  );
+
   return ThemeData(
     colorScheme: scheme,
-    scaffoldBackgroundColor: isDark ? scheme.surface : const Color(0xFFF5F6FA),
+    scaffoldBackgroundColor: isDark ? kDarkScaffold : kLightScaffold,
     appBarTheme: AppBarTheme(
       backgroundColor: Colors.transparent,
       surfaceTintColor: Colors.transparent,
@@ -65,7 +123,7 @@ ThemeData buildTheme(Brightness brightness, Color seed) {
       titleTextStyle: TextStyle(
         fontSize: 20,
         fontWeight: FontWeight.w700,
-        color: scheme.onSurface,
+        color: scheme.primary,
       ),
     ),
     filledButtonTheme: FilledButtonThemeData(
@@ -83,14 +141,36 @@ ThemeData buildTheme(Brightness brightness, Color seed) {
     ),
     navigationBarTheme: NavigationBarThemeData(
       height: 68,
-      backgroundColor: isDark ? scheme.surface : Colors.white,
+      backgroundColor: surface,
       indicatorColor: scheme.primary.withValues(alpha: 0.14),
-      labelTextStyle: WidgetStatePropertyAll(
-        TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: scheme.onSurface),
-      ),
+      labelTextStyle: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return TextStyle(
+          fontSize: 12,
+          fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+          color: selected ? scheme.primary : scheme.onSurfaceVariant,
+        );
+      }),
+      iconTheme: WidgetStateProperty.resolveWith((states) {
+        final selected = states.contains(WidgetState.selected);
+        return IconThemeData(
+          size: 24,
+          color: selected ? scheme.primary : scheme.onSurfaceVariant,
+        );
+      }),
     ),
     snackBarTheme: const SnackBarThemeData(behavior: SnackBarBehavior.floating),
-    dividerTheme: DividerThemeData(color: scheme.outlineVariant.withValues(alpha: 0.5), thickness: 1),
+    dividerTheme: DividerThemeData(color: scheme.outlineVariant, thickness: 1),
+    sliderTheme: SliderThemeData(
+      activeTrackColor: scheme.primary,
+      thumbColor: scheme.primary,
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        selectedForegroundColor: scheme.onPrimaryContainer,
+        selectedBackgroundColor: scheme.primaryContainer,
+      ),
+    ),
   );
 }
 

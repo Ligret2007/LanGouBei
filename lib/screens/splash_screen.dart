@@ -37,9 +37,9 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              theme.colorScheme.primary.withValues(alpha: 0.14),
+              theme.colorScheme.surfaceContainerLow,
               theme.scaffoldBackgroundColor,
-              theme.colorScheme.secondary.withValues(alpha: 0.10),
+              theme.colorScheme.surfaceContainerLow,
             ],
           ),
         ),
@@ -66,7 +66,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 const SizedBox(height: 20),
                 Text('LangoBei',
                     style: theme.textTheme.headlineMedium
-                        ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5)),
+                        ?.copyWith(fontWeight: FontWeight.w800, letterSpacing: -0.5, color: theme.colorScheme.primary)),
                 const SizedBox(height: 8),
                 Text('把单词变成你的',
                     style: theme.textTheme.bodyMedium

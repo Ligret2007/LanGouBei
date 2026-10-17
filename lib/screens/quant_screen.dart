@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../theme.dart';
@@ -23,7 +23,7 @@ class QuantScreen extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 28),
           children: [
             Text('量化',
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
             const SizedBox(height: 4),
             Text('把进度看得见，才不容易半途而废',
                 style: theme.textTheme.bodySmall

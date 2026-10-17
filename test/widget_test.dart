@@ -1,7 +1,8 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langobei/theme.dart';
 import 'package:langobei/screens/more_screen.dart';
+import 'package:langobei/screens/study_screen.dart';
 import 'package:langobei/widgets/flip_card.dart';
 import 'package:langobei/app_state.dart';
 import 'package:langobei/models/word.dart';
@@ -244,6 +245,73 @@ void main() {
       final chip = tester.widget<TagChip>(find.byType(TagChip).first);
       expect(chip.text, 'hard');
       expect(chip.color, kLevelHard);
+    });
+  });
+
+  group('主题色只动醒目位，白色部分不变', () {
+    final seeds = {
+      for (final p in kThemePresets)
+        if (!p.reserved) p.id: seedForPreset(p),
+    };
+
+    test('三个预设的主色确实不一样', () {
+      final primaries = seeds.values
+          .map((s) => buildTheme(Brightness.light, s).colorScheme.primary)
+          .toSet();
+      expect(primaries.length, seeds.length);
+    });
+
+    test('主色跟着预设的色相走', () {
+      for (final entry in seeds.entries) {
+        final primary = buildTheme(Brightness.light, entry.value).colorScheme.primary;
+        expect(
+          HSVColor.fromColor(primary).hue,
+          closeTo(HSVColor.fromColor(entry.value).hue, 16),
+          reason: '${entry.key} 的主色',
+        );
+      }
+    });
+
+    test('浅色下白色部分与主题色无关', () {
+      final themes = seeds.values.map((s) => buildTheme(Brightness.light, s)).toList();
+      final first = themes.first.colorScheme;
+      expect(first.surface, Colors.white);
+      expect(themes.map((t) => t.scaffoldBackgroundColor).toSet().length, 1);
+      for (final t in themes.skip(1)) {
+        final c = t.colorScheme;
+        expect(c.surface, first.surface);
+        expect(c.surfaceContainer, first.surfaceContainer);
+        expect(c.surfaceContainerLow, first.surfaceContainerLow);
+        expect(c.surfaceContainerHigh, first.surfaceContainerHigh);
+        expect(c.surfaceContainerHighest, first.surfaceContainerHighest);
+        expect(c.onSurface, first.onSurface);
+        expect(c.onSurfaceVariant, first.onSurfaceVariant);
+        expect(c.outline, first.outline);
+        expect(c.outlineVariant, first.outlineVariant);
+      }
+    });
+
+    test('深色下白色部分同样与主题色无关', () {
+      final themes = seeds.values.map((s) => buildTheme(Brightness.dark, s)).toList();
+      final first = themes.first;
+      for (final t in themes.skip(1)) {
+        expect(t.colorScheme.surface, first.colorScheme.surface);
+        expect(t.colorScheme.surfaceContainerHighest, first.colorScheme.surfaceContainerHighest);
+        expect(t.colorScheme.onSurface, first.colorScheme.onSurface);
+        expect(t.scaffoldBackgroundColor, first.scaffoldBackgroundColor);
+      }
+    });
+
+    testWidgets('知新页标题用的是主题色', (tester) async {
+      final theme = buildTheme(Brightness.light, seedForPreset(presetById('purple')));
+      await tester.pumpWidget(
+        MaterialApp(theme: theme, home: StudyScreen(state: AppState())),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<Text>(find.text('知新')).style?.color,
+        theme.colorScheme.primary,
+      );
     });
   });
 

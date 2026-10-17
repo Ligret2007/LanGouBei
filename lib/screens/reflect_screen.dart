@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/word.dart';
@@ -106,7 +106,7 @@ class ReflectScreenState extends State<ReflectScreen> {
           Row(
             children: [
               Text('反思',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
               const SizedBox(width: 10),
               TagChip('错题本 ${_state.wrongCount}', color: kWarn),
               const Spacer(),
@@ -241,7 +241,7 @@ class ReflectScreenState extends State<ReflectScreen> {
             ),
             const SizedBox(height: 20),
             Text(empty ? '错题本是空的' : '这一轮反思完成',
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
             const SizedBox(height: 8),
             Text(
               empty ? '先去「知新」学几个词，选「不认识」就会进这里' : '移出错题本 $_removed 个 · 作答 $_answered 次',

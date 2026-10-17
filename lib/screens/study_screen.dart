@@ -125,7 +125,7 @@ class _StudyScreenState extends State<StudyScreen> {
           Row(
             children: [
               Text('知新',
-                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                  style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
               const SizedBox(width: 10),
               TagChip(_state.settings.bank == 'ext' ? '高分词库' : '保底词库'),
               const Spacer(),
@@ -282,7 +282,7 @@ class _StudyScreenState extends State<StudyScreen> {
             ),
             const SizedBox(height: 20),
             Text(empty ? '这一轮没有待学的词' : '这一组学完了',
-                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
             const SizedBox(height: 8),
             Text(
               empty ? '待复习的词都在错题本里，去「反思」清一清' : '本轮做了 $_answered 次选择',

@@ -144,7 +144,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           const SizedBox(height: 28),
           Text('LangoBei',
               style: theme.textTheme.displaySmall
-                  ?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1)),
+                  ?.copyWith(fontWeight: FontWeight.w900, letterSpacing: -1, color: theme.colorScheme.primary)),
           const SizedBox(height: 14),
           Text(
             '源于世界上最负责的英语老师\n催促我背单词',
@@ -174,7 +174,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('选一个词库',
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
           const SizedBox(height: 6),
           Text('之后可以在「我的」里重新设置',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -230,7 +230,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('是否即将参加高考？',
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
           const SizedBox(height: 6),
           Text('选了「是」之后，加载页会显示倒计时',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
@@ -317,7 +317,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           const SizedBox(height: 26),
           Text('一切准备就绪',
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: theme.colorScheme.primary)),
           const SizedBox(height: 8),
           Text('祝你好运',
               style: theme.textTheme.titleMedium
