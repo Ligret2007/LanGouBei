@@ -146,7 +146,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             style: theme.textTheme.titleLarge?.copyWith(height: 1.5, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 18),
-          Text('github 开源：LangoBei',
+          Text('开源地址：github.com/Ligret2007/LanGouBei',
               style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
           const Spacer(),
           Align(

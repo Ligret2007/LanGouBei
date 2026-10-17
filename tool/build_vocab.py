@@ -6,7 +6,7 @@ sys.stdout.reconfigure(encoding="utf-8")
 
 # 输入是本地整理的纯文本词表（每行：单词 音标 分级 释义），也可用命令行参数指定别的路径
 SRC = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser(r"~\Desktop\高考英语3500词库\高考英语3500词.txt")
-OUT = r"C:\Users\Ligret\Documents\deepseek-harness\default-workspace\langobei\assets\words_gaokao.json"
+OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "assets", "words_gaokao.json")
 
 LINE_RE = re.compile(r"^\s*(.+?)\s+(/[^/]*/)\s+(easy|normal|hard|extra)\s+(.+?)\s*$")
 POS_RE = re.compile(r"^((?:[a-z]{1,6}\.)+\s*)(.*)$")

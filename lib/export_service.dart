@@ -33,6 +33,9 @@ class ExportService {
   /// 组装导出内容：痕迹、统计、外观设置
   static Map<String, dynamic> payload(AppState state, {DateTime? now}) {
     final t = now ?? DateTime.now();
+    // 「今日」这一段跟着传入的时间走，不读真实时钟：这样导出内容是确定性的，测试也不受跨零点影响
+    final todayKey = AppState.dayKey(t);
+    final todayStat = state.daily[todayKey];
     final p = state.progress.values;
     int sum(int Function(WordProgress) f) => p.fold<int>(0, (s, e) => s + f(e));
 
@@ -57,9 +60,9 @@ class ExportService {
         'themeMode': state.settings.themeMode.name,
         'themePreset': state.settings.themePreset,
         'today': {
-          'date': state.todayKey,
-          'choices': state.todayStat.choices,
-          'correct': state.todayStat.correct,
+          'date': todayKey,
+          'choices': todayStat?.choices ?? 0,
+          'correct': todayStat?.correct ?? 0,
         },
       },
       'data': state.toSnapshot(),
