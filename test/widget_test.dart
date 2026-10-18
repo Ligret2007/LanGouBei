@@ -456,6 +456,111 @@ void main() {
     });
   });
 
+  group('知新队列（伪随机 + 难度均匀）', () {
+    Word word(String id, String level, {String tier = 'core'}) => Word(
+          id: id,
+          word: id,
+          phonetic: '/x/',
+          pos: 'n.',
+          meaning: '释义',
+          level: level,
+          tier: tier,
+        );
+
+    /// 一套按占比的迷你词库：easy 52 / normal 29 / hard 19（和菜鸟库的比例一致）
+    AppState bank() {
+      final s = AppState();
+      s.settings = Settings(bank: kBankCore, onboarded: true);
+      s.allWords = [
+        for (var i = 0; i < 52; i++) word('e${i.toString().padLeft(2, '0')}', 'easy'),
+        for (var i = 0; i < 29; i++) word('n${i.toString().padLeft(2, '0')}', 'normal'),
+        for (var i = 0; i < 19; i++) word('h${i.toString().padLeft(2, '0')}', 'hard'),
+      ];
+      return s;
+    }
+
+    List<String> idsOf(List<Word> ws) => [for (final w in ws) w.id];
+
+    test('不再按字母顺序；同一个种子必然给出同一条队列', () {
+      final s = bank();
+      final a = s.pickStudyWords(seed: 2026);
+      final b = s.pickStudyWords(seed: 2026);
+      expect(idsOf(a), idsOf(b), reason: '同种子可复现');
+
+      final alphabetical = [...s.allWords]..sort((x, y) => x.id.compareTo(y.id));
+      expect(idsOf(a), isNot(idsOf(alphabetical.take(20).toList())), reason: '不能还是 abc 排下来');
+      expect(idsOf(s.pickStudyWords(seed: 7)), isNot(idsOf(a)), reason: '换个种子顺序就不同');
+    });
+
+    test('20 张里各难度的数量贴近整库占比', () {
+      final s = bank();
+      final queue = s.pickStudyWords(size: 20, seed: 42);
+      expect(queue.length, 20);
+      final counts = <String, int>{};
+      for (final w in queue) {
+        counts[w.level] = (counts[w.level] ?? 0) + 1;
+      }
+      expect((counts['easy']! - 10.4).abs(), lessThanOrEqualTo(1), reason: '实际 ${counts['easy']}');
+      expect((counts['normal']! - 5.8).abs(), lessThanOrEqualTo(1), reason: '实际 ${counts['normal']}');
+      expect((counts['hard']! - 3.8).abs(), lessThanOrEqualTo(1), reason: '实际 ${counts['hard']}');
+      expect(counts['extra'], isNull, reason: '菜鸟库里没有 extra');
+    });
+
+    test('每个难度都在队列里，且打散开（不连续堆在一起）', () {
+      final s = bank();
+      final levels = [for (final w in s.pickStudyWords(size: 20, seed: 11)) w.level];
+      for (final l in ['easy', 'normal', 'hard']) {
+        expect(levels.contains(l), isTrue, reason: '$l 应该露面');
+      }
+      var maxRun = 1;
+      var run = 1;
+      for (var i = 1; i < levels.length; i++) {
+        run = levels[i] == levels[i - 1] ? run + 1 : 1;
+        if (run > maxRun) maxRun = run;
+      }
+      expect(maxRun, lessThanOrEqualTo(4), reason: '最长连串 $maxRun：$levels');
+    });
+
+    test('没见过的词优先，见过的词按最久没复习排在本级后面', () {
+      final s = bank();
+      s.progress['h18'] = WordProgress()
+        ..knowCount = 1
+        ..lastSeenMs = 1; // 很久没复习
+      s.progress['h17'] = WordProgress()
+        ..knowCount = 1
+        ..lastSeenMs = 9999999999; // 刚复习过
+
+      final ids = idsOf(s.pickStudyWords(size: 100, seed: 5));
+      expect(ids.indexOf('h18'), greaterThan(ids.indexOf('h00')), reason: '见过的排在没见过的后面');
+      expect(ids.indexOf('h18'), lessThan(ids.indexOf('h17')), reason: '越久没复习越靠前');
+    });
+
+    test('已掌握和错题本里的词都不进队列', () {
+      final s = bank();
+      s.progress['e00'] = WordProgress()..forceMastered();
+      s.progress['n00'] = WordProgress()..inWrongBook = true;
+
+      final ids = idsOf(s.pickStudyWords(size: 100, seed: 9));
+      expect(ids, isNot(contains('e00')));
+      expect(ids, isNot(contains('n00')));
+      expect(ids.length, 98);
+    });
+
+    test('换词库后队列按新词库重排，进度仍然认得', () {
+      final s = bank();
+      s.allWords = [...s.allWords, word('x00', 'extra', tier: 'ext')];
+      s.progress['e00'] = WordProgress()..forceMastered();
+
+      final core = idsOf(s.pickStudyWords(size: 100, seed: 3));
+      expect(core, isNot(contains('x00')), reason: '菜鸟库不含 extra');
+
+      s.settings.bank = kBankExt;
+      final ext = idsOf(s.pickStudyWords(size: 100, seed: 3));
+      expect(ext, contains('x00'));
+      expect(ext, isNot(contains('e00')), reason: '背过的词换库也还是背过的');
+    });
+  });
+
   group('更多页', () {
     Future<AppState> pumpMore(WidgetTester tester, {AppState? state}) async {
       final s = state ?? AppState();

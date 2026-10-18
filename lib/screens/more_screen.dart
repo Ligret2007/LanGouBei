@@ -10,6 +10,7 @@ import '../models/word.dart';
 import '../widgets/bank_option.dart';
 import '../widgets/year_wheel.dart';
 import '../theme.dart';
+import '../version.dart';
 
 /// 更多：外观（深浅色 + 主题色）、当前设置、重置入口
 class MoreScreen extends StatelessWidget {
@@ -264,7 +265,7 @@ class MoreScreen extends StatelessWidget {
                       ],
                     ),
                   ),
-                  TagChip('v1.0.0'),
+                  TagChip('v$kAppVersion'),
                 ],
               ),
             ),

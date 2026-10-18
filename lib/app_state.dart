@@ -7,6 +7,7 @@ import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'models/word.dart';
+import 'word_queue.dart';
 
 /// 学习队列里的一项
 class StudyItem {
@@ -34,6 +35,9 @@ class AppState extends ChangeNotifier {
   SharedPreferences? _prefs;
   Timer? _saveTimer;
   final Random _random = Random();
+
+  /// 每一轮「知新」的伪随机种子来源（种子本身不落盘，换一轮就换一个）
+  final Random _seedSource = Random();
 
   // ---------------- 初始化 ----------------
   Future<void> load() async {
@@ -156,24 +160,33 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------- 队列 ----------------
-  /// 知新的基础队列：优先没见过的，其次最久没复习的
-  List<Word> pickStudyWords({int size = 20}) {
-    final pool = bankWords.where((w) {
+  /// 知新的基础队列：伪随机打乱 + 按各分级在词库里的占比均匀交错。
+  ///
+  /// 每个分级单独一个桶，桶内**没见过的词**打乱后放前面，见过的词按「最久没复习」
+  /// 排后面（新词优先，其次是该复习的）；再把各桶交错成一条队列，让不同难度均匀出现。
+  /// [seed] 只给测试用：不传就用一个真随机种子，所以每次进「知新」顺序都是新的，
+  /// 但同一轮里固定不变。
+  List<Word> pickStudyWords({int size = 20, int? seed}) {
+    final buckets = bucketByLevel(bankWords.where((w) {
       final p = progress[w.id];
       if (p == null) return true;
       return !p.mastered && !p.inWrongBook;
-    }).toList();
+    }));
 
-    pool.sort((a, b) {
-      final pa = progress[a.id];
-      final pb = progress[b.id];
-      if (pa == null && pb == null) return a.word.compareTo(b.word);
-      if (pa == null) return -1;
-      if (pb == null) return 1;
-      return pa.lastSeenMs.compareTo(pb.lastSeenMs);
-    });
+    final rng = Random(seed ?? _seedSource.nextInt(1 << 31));
+    for (final level in kLevels) {
+      final fresh = <Word>[];
+      final seen = <Word>[];
+      for (final w in buckets[level]!) {
+        (progress[w.id] == null ? fresh : seen).add(w);
+      }
+      fresh.shuffle(rng);
+      seen.sort((a, b) => (progress[a.id]?.lastSeenMs ?? 0)
+          .compareTo(progress[b.id]?.lastSeenMs ?? 0));
+      buckets[level] = [...fresh, ...seen];
+    }
 
-    return pool.take(size).toList();
+    return buildBalancedQueue(buckets, rng: rng).take(size).toList();
   }
 
   /// 实时取一个错题（每 5 个词插入一张时用），[exclude] 里的这一轮已经出现过
