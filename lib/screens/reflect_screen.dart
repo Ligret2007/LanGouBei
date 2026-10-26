@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/word.dart';
+import '../motion.dart';
 import '../theme.dart';
 import '../widgets/flip_card.dart';
 
@@ -144,9 +145,9 @@ class ReflectScreenState extends State<ReflectScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Center(
           child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 320),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
+            duration: Motion.content,
+            switchInCurve: Motion.enter,
+            switchOutCurve: Motion.exit,
             transitionBuilder: (child, anim) {
               final slide = Tween<Offset>(
                 begin: const Offset(0.22, 0),

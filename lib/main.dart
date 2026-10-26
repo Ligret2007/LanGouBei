@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'app_state.dart';
+import 'crisp.dart';
 import 'models/word.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/shell.dart';
@@ -9,6 +11,8 @@ import 'theme.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // 只做竖屏：转屏会让背单词的视线流被打断，也不存在横屏布局
+  await SystemChrome.setPreferredOrientations(const [DeviceOrientation.portraitUp]);
   final state = AppState();
   await state.load();
   runApp(LangoBeiApp(state: state));
@@ -37,6 +41,21 @@ class LangoBeiApp extends StatelessWidget {
             ThemeModeSetting.dark => ThemeMode.dark,
           },
           home: RootGate(state: state),
+          builder: (context, child) {
+            final content = child ?? const SizedBox.shrink();
+            // 字号吸附到整设备像素；内容区收在竖屏宽度内（平板横放也不会变成横屏布局）
+            return CrispPixels(
+              child: ColoredBox(
+                color: Theme.of(context).scaffoldBackgroundColor,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: kMaxContentWidth),
+                    child: content,
+                  ),
+                ),
+              ),
+            );
+          },
         );
       },
     );

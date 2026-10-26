@@ -31,7 +31,7 @@ class QuantScreen extends StatelessWidget {
             Text('把进度看得见，才不容易半途而废',
                 style: theme.textTheme.bodySmall
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
 
             // 倒计时 + 连续天数
             SurfaceCard(
@@ -246,7 +246,7 @@ class _MetricCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return SurfaceCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

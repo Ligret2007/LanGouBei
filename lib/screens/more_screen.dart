@@ -83,7 +83,7 @@ class MoreScreen extends StatelessWidget {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 20),
                   Row(
                     children: [
                       Text('主题色',
@@ -262,6 +262,22 @@ class MoreScreen extends StatelessWidget {
                         Text('——高三生 Ligret',
                             style: theme.textTheme.labelSmall
                                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+                        const SizedBox(height: 2),
+                        // 渲染参数：排查"字发虚"时一眼能看出屏幕像素比和字号缩放
+                        Builder(
+                          builder: (context) {
+                            final mq = MediaQuery.of(context);
+                            final dpr = mq.devicePixelRatio;
+                            final w = (mq.size.width * dpr).round();
+                            final h = (mq.size.height * dpr).round();
+                            final scale = mq.textScaler.scale(14) / 14;
+                            return Text(
+                              '屏幕 $w×$h @${dpr.toStringAsFixed(2)} · 字号 ${scale.toStringAsFixed(2)}×',
+                              style: theme.textTheme.labelSmall
+                                  ?.copyWith(color: theme.colorScheme.outline, fontSize: 10),
+                            );
+                          },
+                        ),
                       ],
                     ),
                   ),

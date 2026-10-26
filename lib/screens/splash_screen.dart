@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../app_state.dart';
+import '../motion.dart';
 import '../theme.dart';
 
 /// 打开软件时的加载页：显示高考倒计时
@@ -16,7 +17,7 @@ class SplashScreen extends StatefulWidget {
 class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 900),
+    duration: Motion.splash,
   )..forward();
 
   @override
@@ -45,13 +46,13 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
         ),
         child: SafeArea(
           child: FadeTransition(
-            opacity: CurvedAnimation(parent: _c, curve: Curves.easeOut),
+            opacity: CurvedAnimation(parent: _c, curve: Motion.standard),
             child: Column(
               children: [
                 const Spacer(flex: 3),
                 ScaleTransition(
                   scale: Tween<double>(begin: 0.85, end: 1).animate(
-                    CurvedAnimation(parent: _c, curve: Curves.easeOutBack),
+                    CurvedAnimation(parent: _c, curve: Motion.overshoot),
                   ),
                   child: Container(
                     width: 84,

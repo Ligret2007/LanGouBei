@@ -37,7 +37,7 @@ class BankOption extends StatelessWidget {
           onTap: disabled ? null : onTap,
           borderRadius: BorderRadius.circular(18),
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
             decoration: BoxDecoration(
               color: selected
                   ? theme.colorScheme.primary.withValues(alpha: 0.08)

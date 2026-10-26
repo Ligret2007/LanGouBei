@@ -20,6 +20,10 @@ const Color kLevelNormalDark = Color(0xFFE9C24B);
 const Color kLevelHardDark = Color(0xFFFF9E4D);
 const Color kLevelExtraDark = Color(0xFFFF6B70);
 
+/// 内容区最大宽度：竖屏手机用不到，平板/折叠屏上把内容收成一条竖屏宽度的中轴，
+/// 不做横屏布局，也不会把行宽拉到读起来累的程度
+const double kMaxContentWidth = 560;
+
 Color levelColor(String level, Brightness brightness) {
   final dark = brightness == Brightness.dark;
   return switch (level) {
@@ -184,7 +188,7 @@ class SurfaceCard extends StatelessWidget {
   const SurfaceCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(18),
+    this.padding = const EdgeInsets.all(20),
     this.color,
     this.onTap,
   });

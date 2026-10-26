@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import '../models/word.dart';
+import '../motion.dart';
 import '../theme.dart';
 
 /// 3D 翻转单词卡：正面只给单词，翻面看释义
@@ -25,7 +26,7 @@ class FlipWordCard extends StatefulWidget {
 class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderStateMixin {
   late final AnimationController _controller = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 380),
+    duration: Motion.flip,
     value: widget.revealed ? 1 : 0,
   );
 
@@ -33,7 +34,7 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
   void didUpdateWidget(covariant FlipWordCard oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.revealed != widget.revealed) {
-      _controller.animateTo(widget.revealed ? 1 : 0, curve: Curves.easeInOutCubic);
+      _controller.animateTo(widget.revealed ? 1 : 0, curve: Motion.flipCurve);
     }
   }
 
@@ -51,11 +52,14 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
       builder: (context, _) {
         final angle = _controller.value * math.pi;
         final showBack = _controller.value > 0.5;
+        // 转到侧面时略微缩小，翻面更有「卡片厚度」的感觉
+        final scale = 1 - 0.06 * math.sin(angle);
         return Transform(
           alignment: Alignment.center,
           transform: Matrix4.identity()
             ..setEntry(3, 2, 0.0012)
-            ..rotateY(angle),
+            ..rotateY(angle)
+            ..scaleByDouble(scale, scale, 1.0, 1.0),
           child: showBack
               ? Transform(
                   alignment: Alignment.center,
@@ -71,7 +75,7 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
   Widget _front(ThemeData theme) {
     final w = widget.word;
     return SurfaceCard(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 28),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: SizedBox(
         width: double.infinity,
         height: 330,
@@ -88,7 +92,7 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
                 ],
               ],
             ),
-            const SizedBox(height: 26),
+            const SizedBox(height: 24),
             Text(
               w.word,
               textAlign: TextAlign.center,
@@ -101,7 +105,7 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
             Text(w.phonetic,
                 style: theme.textTheme.titleMedium
                     ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 34),
+            const SizedBox(height: 32),
             Text('轻点卡片查看释义',
                 style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline)),
           ],
@@ -113,7 +117,7 @@ class _FlipWordCardState extends State<FlipWordCard> with SingleTickerProviderSt
   Widget _back(ThemeData theme) {
     final w = widget.word;
     return SurfaceCard(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 26),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
       child: SizedBox(
         width: double.infinity,
         height: 330,

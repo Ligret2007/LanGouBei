@@ -4,6 +4,7 @@ import '../app_state.dart';
 import '../models/word.dart';
 import '../widgets/bank_option.dart';
 import '../widgets/year_wheel.dart';
+import '../motion.dart';
 import '../theme.dart';
 
 /// 首次启动的四页引导
@@ -45,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
 
   void _next() {
     if (_page < _pages - 1) {
-      _controller.nextPage(duration: const Duration(milliseconds: 320), curve: Curves.easeOutCubic);
+      _controller.nextPage(duration: Motion.page, curve: Motion.standard);
     } else {
       widget.state.completeOnboarding(bank: _bank, examYear: _examYear);
     }
@@ -92,7 +93,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     children: List.generate(_pages, (i) {
                       final active = i == _page;
                       return AnimatedContainer(
-                        duration: const Duration(milliseconds: 220),
+                        duration: Motion.fade,
                         margin: const EdgeInsets.symmetric(horizontal: 3),
                         width: active ? 22 : 7,
                         height: 7,

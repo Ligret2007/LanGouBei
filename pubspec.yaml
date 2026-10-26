@@ -1,7 +1,7 @@
 name: langobei
 description: "LangoBei —— 面向高考英语的背单词 App"
 publish_to: 'none'
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ^3.13.5

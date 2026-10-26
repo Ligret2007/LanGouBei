@@ -82,7 +82,7 @@ flutter pub get
 flutter run                    # 连上手机或模拟器，改代码即时热重载
 flutter build apk --release    # 产物：build/app/outputs/flutter-apk/app-release.apk
 flutter analyze
-flutter test                   # 75 个测试
+flutter test                   # 80 个测试
 ```
 
 ## 代码结构
@@ -91,6 +91,8 @@ flutter test                   # 75 个测试
 lib/
   main.dart                 入口 + 路由（引导 / 加载页 / 主界面）
   app_state.dart            词库、设置、学习档案、掌握度算法、持久化
+  motion.dart               动效时长与曲线，全站统一从这里取
+  crisp.dart                字号与布局吸附到整设备像素
   word_queue.dart           知新队列排法：伪随机 + 按难度占比均匀交错
   export_service.dart       导出数据组装
   version.dart              版本号（和 pubspec 一起改）
@@ -113,6 +115,7 @@ android/.../MainActivity.kt 原生通道：写「下载」目录、拉起分享�
 - 只有 Android 版（没做过 iOS 适配），词库只有单词 / 音标 / 词性 / 释义，没有例句和真人发音
 - release 关闭了 R8 压缩：AGP 9 的默认压缩会裁掉插件反射调用的方法，装上就崩，等插件适配后再打开
 - 四级、雅思词库还是占位；导出有了，导入还没做
+- 只做竖屏：手机锁竖屏；平板或折叠屏横放时，内容会收成一条竖屏宽度的中栏，不做横屏布局
 
 ## 开源协议
 
