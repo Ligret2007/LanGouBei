@@ -1,0 +1,65 @@
+name: iOS 未签名安装包
+
+# 在 GitHub 的 macOS 机器上出未签名的 .ipa：
+# 本机（Windows）没法编译 iOS，这个流程负责编译并留档，
+# 下载后用 Sideloadly / AltStore 用自己的 Apple ID 签名装到 iPhone。
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'ios/**'
+      - 'lib/**'
+      - 'assets/**'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/ios-unsigned-ipa.yml'
+
+jobs:
+  build-ipa:
+    name: 构建未签名 ipa
+    runs-on: macos-15
+    timeout-minutes: 30
+    steps:
+      - name: 拉取代码
+        uses: actions/checkout@v4
+
+      - name: 安装 Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.7
+          cache: true
+
+      - name: 环境信息
+        run: |
+          flutter --version
+          xcodebuild -version
+          pod --version
+
+      - name: 拉依赖
+        run: flutter pub get
+
+      - name: 编译（不签名）
+        run: flutter build ios --release --no-codesign
+
+      - name: 打成 ipa
+        run: |
+          set -euo pipefail
+          APP="build/ios/iphoneos/Runner.app"
+          test -d "$APP"
+          rm -rf build/ipa && mkdir -p build/ipa/Payload
+          cp -R "$APP" build/ipa/Payload/
+          cd build/ipa
+          zip -qry LangoBei-unsigned.ipa Payload
+          ls -lh LangoBei-unsigned.ipa
+          shasum -a 256 LangoBei-unsigned.ipa
+
+      - name: 上传产物
+        uses: actions/upload-artifact@v4
+        with:
+          name: LangoBei-unsigned-ipa
+          path: build/ipa/LangoBei-unsigned.ipa
+          if-no-files-found: error
+          retention-days: 30

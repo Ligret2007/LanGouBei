@@ -14,6 +14,21 @@ MIT 协议开源，自用、二改、商用都可以，保留版权声明即可�
 
 想自己编译，见下面的[怎么跑起来](#怎么跑起来)。
 
+## iOS
+
+iOS 工程已经在仓库里（`ios/`），代码和 Android 共用同一份 Flutter 实现，两个原生通道用 Swift 重写了一遍：
+
+- 导出数据 / 分享：iOS 没有公共「下载」目录，改成弹系统保存面板让你存进「文件」App
+- 词库相关：文件放在 App 沙盒的 `Application Support/banks/`，选文件走系统「文件」选择器
+- 竖屏锁定、图标、显示名都在 `Info.plist` 与 `Assets.xcassets` 里配好了
+
+**iOS 必须在 macOS 上编译**，Windows 上只能写代码。仓库里带了一个 GitHub Actions 流程（`.github/workflows/ios-unsigned-ipa.yml`），在 GitHub 的 macOS 机器上构建**未签名** `.ipa`：
+
+1. 打开 Actions → 「iOS 未签名安装包」→ 下载产物 `LangoBei-unsigned-ipa`
+2. 用 [Sideloadly](https://sideloadly.io/) 或 AltStore 注册自己的 Apple ID 签名，装到 iPhone
+
+免费 Apple ID 签名的 App **7 天过期**，过期重签即可；要长期使用或上架 App Store，需要 Apple 开发者账号（¥688/年）。有 Mac 的话也可以直接 `flutter run` 或 Xcode 打开 `ios/Runner.xcworkspace` 调试。
+
 ## 界面预览
 
 | 知新 · 翻开释义 | 量化 · 7 日成果 | 更多 · 设置与数据 |
@@ -103,6 +118,7 @@ lib/
   widgets/                  翻转卡、词库选项卡、年份滚轮
   screens/                  引导、加载页、四个板块
 android/.../MainActivity.kt 原生通道：写「下载」目录、分享面板、词库文件读写与文件选择
+ios/Runner/AppDelegate.swift 同样两组通道的 Swift 实现：保存到「文件」、分享、词库读写与选文件
 ```
 
 持久化只用 `shared_preferences` 存一份 JSON（连续操作时 600ms 防抖写盘）——没有数据库，也没引状态管理框架，`ChangeNotifier` 加一层 `ListenableBuilder` 就够了。
@@ -114,7 +130,7 @@ android/.../MainActivity.kt 原生通道：写「下载」目录、分享面板�
 
 ## 已知限制
 
-- 只有 Android 版（没做过 iOS 适配），词库只有单词 / 音标 / 词性 / 释义，没有例句和真人发音
+- Android 已发布正式包；iOS 工程已就绪但要 macOS 构建（见上面 [iOS](#ios) 一节），词库只有单词 / 音标 / 词性 / 释义，没有例句和真人发音
 - release 关闭了 R8 压缩：AGP 9 的默认压缩会裁掉插件反射调用的方法，装上就崩，等插件适配后再打开
 - 四级、雅思词库还是占位；学习数据的「导入」还没做（词库的导入导出已经能用了）
 - 只做竖屏：手机锁竖屏；平板或折叠屏横放时，内容会收成一条竖屏宽度的中栏，不做横屏布局
