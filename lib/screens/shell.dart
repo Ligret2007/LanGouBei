@@ -52,8 +52,9 @@ class _ShellState extends State<Shell> {
               // 过渡动画就不会跑。
               key: ValueKey(i),
               active: i == _index,
-              // 目标位置：左边来的往左退、右边来的往右等，被选中的回到原位
-              offset: i == _index ? Offset.zero : Offset(i < _index ? -0.09 : 0.09, 0),
+              // 整屏平移：被选中的回到原位，其余的推到屏幕外一整屏
+              // （左页推到左边、右页推到右边），两页同向滑动像翻页
+              offset: i == _index ? Offset.zero : Offset(i < _index ? -1.0 : 1.0, 0),
               child: _page(i),
             ),
         ],
@@ -88,7 +89,8 @@ class _ShellState extends State<Shell> {
   }
 }
 
-/// 一页内容：切走时淡出并向一侧退开，切回时淡入滑回原位。
+/// 一页内容：整屏横向平移——切走时推向一侧，切回时从同侧滑回。
+/// 不做淡入淡出，两页同时滑动，接缝处拼成"翻过去"的画面。
 class _TabLayer extends StatelessWidget {
   final bool active;
   final Offset offset;
@@ -105,15 +107,9 @@ class _TabLayer extends StatelessWidget {
         child: AnimatedSlide(
           offset: offset,
           duration: Motion.page,
-          // 大块位移用强调曲线：收尾更长，像被"吸"到位置上
           curve: Motion.emphasized,
-          child: AnimatedOpacity(
-            opacity: active ? 1 : 0,
-            duration: Motion.page,
-            curve: Motion.standard,
-            // 不在前台的页面暂停自己的动画，省电
-            child: TickerMode(enabled: active, child: child),
-          ),
+          // 不在前台的页面暂停自己的动画，省电
+          child: TickerMode(enabled: active, child: child),
         ),
       ),
     );
