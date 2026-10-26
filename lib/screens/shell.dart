@@ -47,9 +47,13 @@ class _ShellState extends State<Shell> {
         children: [
           for (final i in order)
             _TabLayer(
+              // 必须带 key：切页时当前页会被提到最上层（顺序变了），
+              // 没有 key 的话 Flutter 按位置复用元素，整页会被当成换了控件直接替换，
+              // 过渡动画就不会跑。
+              key: ValueKey(i),
               active: i == _index,
               // 目标位置：左边来的往左退、右边来的往右等，被选中的回到原位
-              offset: i == _index ? Offset.zero : Offset(i < _index ? -0.04 : 0.04, 0),
+              offset: i == _index ? Offset.zero : Offset(i < _index ? -0.09 : 0.09, 0),
               child: _page(i),
             ),
         ],
@@ -90,7 +94,7 @@ class _TabLayer extends StatelessWidget {
   final Offset offset;
   final Widget child;
 
-  const _TabLayer({required this.active, required this.offset, required this.child});
+  const _TabLayer({super.key, required this.active, required this.offset, required this.child});
 
   @override
   Widget build(BuildContext context) {
