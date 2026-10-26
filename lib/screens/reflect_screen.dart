@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../app_state.dart';
 import '../models/word.dart';
-import '../motion.dart';
+import '../widgets/card_switch.dart';
 import '../theme.dart';
 import '../widgets/flip_card.dart';
 
@@ -144,20 +144,7 @@ class ReflectScreenState extends State<ReflectScreen> {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
         child: Center(
-          child: AnimatedSwitcher(
-            duration: Motion.content,
-            switchInCurve: Motion.enter,
-            switchOutCurve: Motion.exit,
-            transitionBuilder: (child, anim) {
-              final slide = Tween<Offset>(
-                begin: const Offset(0.22, 0),
-                end: Offset.zero,
-              ).animate(anim);
-              return FadeTransition(
-                opacity: anim,
-                child: SlideTransition(position: slide, child: child),
-              );
-            },
+          child: CardSwitch(
             child: FlipWordCard(
               key: ValueKey('r-${item.word.id}-$_index'),
               word: item.word,

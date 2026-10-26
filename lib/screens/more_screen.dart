@@ -600,8 +600,10 @@ class _Diagnostics extends StatefulWidget {
 
 class _DiagnosticsState extends State<_Diagnostics> {
   double _fps = 0;
+  double _fpsMin = 0;
   int _frames = 0;
   int _intervalTotalUs = 0;
+  int _maxIntervalUs = 0;
   int _lastVsyncUs = 0;
 
   @override
@@ -624,6 +626,7 @@ class _DiagnosticsState extends State<_Diagnostics> {
         // 丢掉异常间隔（刚从后台回来、或者卡了一大下）
         if (d > 1000 && d < 100000) {
           _intervalTotalUs += d;
+          if (d > _maxIntervalUs) _maxIntervalUs = d;
           _frames++;
         }
       }
@@ -631,12 +634,18 @@ class _DiagnosticsState extends State<_Diagnostics> {
     }
     if (_frames >= 20) {
       final avg = _intervalTotalUs / _frames;
+      final worst = _maxIntervalUs;
       _frames = 0;
       _intervalTotalUs = 0;
+      _maxIntervalUs = 0;
       final fps = avg <= 0 ? 0.0 : (1000000 / avg).clamp(0.0, 240.0);
+      final minFps = worst <= 0 ? 0.0 : (1000000 / worst).clamp(0.0, 240.0);
       // 只有明显变化才刷新，否则稳定后每一帧都在重建
-      if (mounted && (fps - _fps).abs() >= 1) {
-        setState(() => _fps = fps);
+      if (mounted && ((fps - _fps).abs() >= 1 || (minFps - _fpsMin).abs() >= 1)) {
+        setState(() {
+          _fps = fps;
+          _fpsMin = minFps;
+        });
       }
     }
   }
@@ -650,8 +659,10 @@ class _DiagnosticsState extends State<_Diagnostics> {
     final h = (mq.size.height * dpr).round();
     final scale = mq.textScaler.scale(14) / 14;
     final fpsText = _fps <= 0 ? '—' : _fps.toStringAsFixed(0);
+    final minText = _fpsMin <= 0 ? '—' : _fpsMin.toStringAsFixed(0);
     return Text(
-      '屏幕 $w×$h @${dpr.toStringAsFixed(2)} · 字号 ${scale.toStringAsFixed(2)}× · ~$fpsText fps',
+      '屏幕 $w×$h @${dpr.toStringAsFixed(2)} · 字号 ${scale.toStringAsFixed(2)}× · '
+      '~$fpsText fps（最低 $minText）',
       style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline, fontSize: 10),
     );
   }
