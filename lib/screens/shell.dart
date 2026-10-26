@@ -105,7 +105,8 @@ class _TabLayer extends StatelessWidget {
         child: AnimatedSlide(
           offset: offset,
           duration: Motion.page,
-          curve: Motion.standard,
+          // 大块位移用强调曲线：收尾更长，像被"吸"到位置上
+          curve: Motion.emphasized,
           child: AnimatedOpacity(
             opacity: active ? 1 : 0,
             duration: Motion.page,
