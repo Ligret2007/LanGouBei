@@ -56,6 +56,17 @@ class Word {
   /// 分级标签：直接显示原文 easy / normal / hard / extra
   String get levelLabel => level.isEmpty ? 'normal' : level;
 
+  /// 导出词库时用；空字段直接省略，导出的文件更小也更好读
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'word': word,
+        if (phonetic.isNotEmpty) 'phonetic': phonetic,
+        if (pos.isNotEmpty) 'pos': pos,
+        if (meaning.isNotEmpty) 'meaning': meaning,
+        'level': level,
+        'tier': tier,
+      };
+
   factory Word.fromJson(Map<String, dynamic> j) => Word(
         id: j['id'] as String,
         word: j['word'] as String,

@@ -12,6 +12,10 @@ import 'package:langobei/widgets/bank_option.dart';
 import 'package:langobei/widgets/year_wheel.dart';
 import 'package:langobei/widgets/flip_card.dart';
 import 'package:langobei/app_state.dart';
+import 'package:langobei/bank/bank_registry.dart';
+import 'package:langobei/bank/bank_source.dart';
+import 'package:langobei/bank/word_bank.dart';
+import 'package:langobei/bank/bank_storage.dart';
 import 'package:langobei/models/word.dart';
 
 void main() {
@@ -346,16 +350,21 @@ void main() {
     });
 
     test('切换词库会改设置并通知', () async {
-      final s = AppState();
+      final s = AppState.withRegistry(
+        await WordBankRegistry.fromAssets(storage: MemoryBankStorage()),
+      );
+      await s.setBank(kBankCore);
       var notified = 0;
       s.addListener(() => notified++);
 
       await s.setBank(kBankExt);
       expect(s.settings.bank, kBankExt);
+      expect(s.bankTotal, 3540, reason: '大神库是全量');
       await s.setBank(kBankExt);
       expect(notified, 1, reason: '同一套词库重复选不该再通知');
       await s.setBank('乱七八糟');
       expect(s.settings.bank, kBankCore, reason: '非法值回落到菜鸟');
+      expect(s.bankTotal, 3014);
     });
 
     testWidgets('引导四页必须逐页点下一步', (tester) async {
@@ -546,24 +555,63 @@ void main() {
       expect(ids.length, 98);
     });
 
-    test('换词库后队列按新词库重排，进度仍然认得', () {
-      final s = bank();
-      s.allWords = [...s.allWords, word('x00', 'extra', tier: 'ext')];
-      s.progress['e00'] = WordProgress()..forceMastered();
+    test('换词库后队列按新词库重排，进度仍然认得', () async {
+      final s = AppState.withRegistry(
+        await WordBankRegistry.fromAssets(storage: MemoryBankStorage()),
+      );
+      await s.setBank(kBankCore);
 
-      final core = idsOf(s.pickStudyWords(size: 100, seed: 3));
-      expect(core, isNot(contains('x00')), reason: '菜鸟库不含 extra');
+      final seenId = s.allWords.first.id;
+      s.progress[seenId] = WordProgress()..forceMastered();
+      final core = idsOf(s.pickStudyWords(size: 4000, seed: 3));
+      expect(core, isNot(contains(seenId)), reason: '已掌握的不进队列');
 
-      s.settings.bank = kBankExt;
-      final ext = idsOf(s.pickStudyWords(size: 100, seed: 3));
-      expect(ext, contains('x00'));
-      expect(ext, isNot(contains('e00')), reason: '背过的词换库也还是背过的');
+      await s.setBank(kBankExt);
+      final ext = idsOf(s.pickStudyWords(size: 4000, seed: 3));
+      expect(ext.length, greaterThan(core.length), reason: '大全库队列更长');
+      expect(ext, isNot(contains(seenId)), reason: '背过的词换库也还是背过的');
     });
   });
 
   group('更多页', () {
+    /// 假词库：不读 assets、不碰原生通道，切库在微任务里就完成
+    WordBankRegistry fakeRegistry() {
+      WordBankMeta meta(String id, String name, String subtitle) => WordBankMeta(
+            id: id,
+            name: name,
+            subtitle: subtitle,
+            builtin: true,
+          );
+      Word w(String id, String level) => Word(
+            id: id,
+            word: id,
+            phonetic: '/x/',
+            pos: 'n.',
+            meaning: '释义',
+            level: level,
+            tier: 'core',
+          );
+      return WordBankRegistry(
+        storage: MemoryBankStorage(),
+        builtins: [
+          BankSummary(meta: meta('core', '高考：我是菜鸟', '基础到进阶，覆盖高考高频'), wordCount: 3),
+          BankSummary(meta: meta('ext', '高考：我是大神', '全部 3540 词'), wordCount: 4),
+        ],
+        sources: {
+          'core': MemoryBankSource(
+            meta: meta('core', '高考：我是菜鸟', '基础到进阶，覆盖高考高频'),
+            words: [w('a', 'easy'), w('b', 'normal'), w('c', 'hard')],
+          ),
+          'ext': MemoryBankSource(
+            meta: meta('ext', '高考：我是大神', '全部 3540 词'),
+            words: [w('a', 'easy'), w('b', 'normal'), w('c', 'hard'), w('d', 'extra')],
+          ),
+        },
+      );
+    }
+
     Future<AppState> pumpMore(WidgetTester tester, {AppState? state}) async {
-      final s = state ?? AppState();
+      final s = state ?? AppState.withRegistry(fakeRegistry());
       // App 里是外层 Shell 监听状态后重建页面，这里补上同样的监听
       await tester.pumpWidget(MaterialApp(
         theme: buildTheme(Brightness.light, defaultSeedColor),
@@ -608,6 +656,45 @@ void main() {
 
       expect(s.settings.bank, kBankExt);
       expect(find.textContaining('已切到「高考：我是大神」'), findsOneWidget);
+    });
+
+    testWidgets('粘贴 JSON 导入：坏文本只提示，不崩', (tester) async {
+      final s = await pumpMore(tester);
+
+      await tester.tap(find.text('导入词库'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('粘贴 JSON'));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), '这不是 JSON');
+      await tester.tap(find.text('导入'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(find.textContaining('导入失败'), findsOneWidget);
+      expect(s.importedBanks, isEmpty);
+      expect(s.activeBank?.id, isNot('imported'));
+    });
+
+    testWidgets('粘贴 JSON 导入：好文本进列表并切过去', (tester) async {
+      final s = await pumpMore(tester);
+
+      await tester.tap(find.text('导入词库'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('粘贴 JSON'));
+      await tester.pumpAndSettle();
+      await tester.enterText(
+        find.byType(TextField),
+        '{"name":"我的小词库","words":[{"word":"alpha","meaning":"第一个"},{"word":"beta"}]}',
+      );
+      await tester.tap(find.text('导入'));
+      await tester.pumpAndSettle();
+
+      expect(tester.takeException(), isNull);
+      expect(s.activeBank?.name, '我的小词库');
+      expect(s.bankTotal, 2);
+      expect(find.text('我的小词库'), findsWidgets);
+      expect(find.textContaining('已导入「我的小词库」'), findsOneWidget);
+      expect(find.textContaining('已导入 1 个词库'), findsOneWidget);
     });
 
     testWidgets('四级与雅思词库为占位，点了不动作', (tester) async {

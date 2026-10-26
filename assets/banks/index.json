@@ -1,0 +1,26 @@
+{
+  "format": "langobei-bank-index",
+  "formatVersion": 1,
+  "banks": [
+    {
+      "id": "core",
+      "name": "高考：我是菜鸟",
+      "subtitle": "基础到进阶，覆盖高考高频",
+      "description": "高考 3500 词里的核心部分，够应付大部分卷子。",
+      "author": "Ligret",
+      "asset": "assets/words_gaokao.json",
+      "tier": "core",
+      "wordCount": 3014
+    },
+    {
+      "id": "ext",
+      "name": "高考：我是大神",
+      "subtitle": "在菜鸟的基础上增加低频词",
+      "description": "核心词加上低频高分词，冲 130+ 用。",
+      "author": "Ligret",
+      "asset": "assets/words_gaokao.json",
+      "tier": null,
+      "wordCount": 3540
+    }
+  ]
+}

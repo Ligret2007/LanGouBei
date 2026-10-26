@@ -7,6 +7,9 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../app_state.dart';
+import '../bank/bank_registry.dart';
+import '../bank/bank_storage.dart';
+import '../bank/word_bank.dart';
 import '../export_service.dart';
 import '../models/word.dart';
 import '../widgets/bank_option.dart';
@@ -122,16 +125,32 @@ class MoreScreen extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('词库',
-                      style: theme.textTheme.titleSmall
-                          ?.copyWith(fontWeight: FontWeight.w700)),
-                  const SizedBox(height: 12),
-                  for (final bank in const [kBankCore, kBankExt]) ...[
+                  Row(
+                    children: [
+                      Text('词库',
+                          style: theme.textTheme.titleSmall
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      const Spacer(),
+                      TextButton.icon(
+                        onPressed: () => _importBank(context),
+                        icon: const Icon(Icons.file_open_rounded, size: 18),
+                        label: const Text('导入词库'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  for (final bank in state.availableBanks) ...[
                     BankOption(
-                      title: bankTitle(bank),
-                      subtitle: bankSubtitle(bank),
-                      selected: s.bank == bank,
+                      title: bank.name,
+                      subtitle: bank.detail,
+                      selected: state.activeBank?.id == bank.id,
                       onTap: () => _switchBank(context, bank),
+                      trailing: IconButton(
+                        visualDensity: VisualDensity.compact,
+                        tooltip: '导出或删除',
+                        icon: const Icon(Icons.more_horiz_rounded, size: 20),
+                        onPressed: () => _bankActions(context, bank),
+                      ),
                     ),
                     const SizedBox(height: 10),
                   ],
@@ -145,6 +164,13 @@ class MoreScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 10),
                   ],
+                  Text(
+                    state.importedBanks.isEmpty
+                        ? '导入的词库存在 App 里，随时能切回来'
+                        : '已导入 ${state.importedBanks.length} 个词库',
+                    style: theme.textTheme.labelSmall
+                        ?.copyWith(color: theme.colorScheme.outline),
+                  ),
                 ],
               ),
             ),
@@ -159,7 +185,7 @@ class MoreScreen extends StatelessWidget {
                       style: theme.textTheme.titleSmall
                           ?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  _row(theme, '词库', bankTitle(s.bank)),
+                  _row(theme, '词库', state.activeBank?.name ?? '—'),
                   _row(theme, '词数', '${state.bankTotal} 词'),
                   _editableRow(
                     context,
@@ -398,15 +424,197 @@ class MoreScreen extends StatelessWidget {
   }
 
   /// 切换词库：换完提示一句，已经背过的词仍然是背过的
-  Future<void> _switchBank(BuildContext context, String bank) async {
+  Future<void> _switchBank(BuildContext context, BankSummary bank) async {
+    if (state.activeBank?.id == bank.id) return;
     final before = state.bankTotal;
-    await state.setBank(bank);
+    await _busy(context, () => state.setBank(bank.id));
     if (!context.mounted) return;
     final delta = state.bankTotal - before;
-    final tip = delta == 0
-        ? '已切到「${bankTitle(bank)}」'
-        : '已切到「${bankTitle(bank)}」，${delta > 0 ? '增加' : '减少'} ${delta.abs()} 个词';
-    _toast(context, '$tip，知新会按新词库重新排队');
+    final tail = delta == 0
+        ? ''
+        : '，${delta > 0 ? '增加' : '减少'} ${delta.abs()} 个词';
+    _toast(context, '已切到「${bank.name}」$tail，知新会按新词库重新排队');
+  }
+
+  /// 导入词库：问一下从文件还是粘贴
+  Future<void> _importBank(BuildContext context) async {
+    final mode = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.folder_open_rounded),
+              title: const Text('从文件选择'),
+              subtitle: const Text('选一个 .json 词库文件'),
+              onTap: () => Navigator.pop(sheet, 'file'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.content_paste_rounded),
+              title: const Text('粘贴 JSON'),
+              subtitle: const Text('把词库文本直接贴进来'),
+              onTap: () => Navigator.pop(sheet, 'paste'),
+            ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (mode == null || !context.mounted) return;
+
+    String? raw;
+    String? filename;
+    if (mode == 'file') {
+      final PickedBankFile? picked =
+          await _busy(context, () => const PlatformBankStorage().pickFile());
+      if (picked == null || !context.mounted) return;
+      raw = picked.content;
+      filename = picked.name;
+    } else {
+      raw = await _pasteDialog(context);
+      if (raw == null || !context.mounted) return;
+    }
+    await _importText(context, raw, filename: filename);
+  }
+
+  Future<void> _importText(BuildContext context, String raw, {String? filename}) async {
+    try {
+      final result = await _busy(context, () => state.importBank(raw, filename: filename));
+      if (!context.mounted) return;
+      final extra = result.warnings.isEmpty ? '' : '（${result.warnings.join('；')}）';
+      _toast(context, '已导入「${result.bank.name}」，${result.bank.wordCount} 词$extra');
+    } on BankFormatException catch (e) {
+      if (context.mounted) _toast(context, '导入失败：${e.message}');
+    } catch (e) {
+      if (context.mounted) _toast(context, '导入失败：$e');
+    }
+  }
+
+  Future<String?> _pasteDialog(BuildContext context) async {
+    final text = await showDialog<String>(
+      context: context,
+      builder: (_) => const _PasteBankDialog(),
+    );
+    final trimmed = text?.trim();
+    return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+  }
+
+  /// 词库的更多操作：导出成文件 / 复制 JSON / 删除（仅导入库）
+  Future<void> _bankActions(BuildContext context, BankSummary bank) async {
+    final scheme = Theme.of(context).colorScheme;
+    final action = await showModalBottomSheet<String>(
+      context: context,
+      showDragHandle: true,
+      builder: (sheet) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(bank.name,
+                  style: const TextStyle(fontWeight: FontWeight.w700)),
+              subtitle: Text(bank.detail),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.save_alt_rounded),
+              title: const Text('导出为文件'),
+              subtitle: const Text('存到系统「下载」目录'),
+              onTap: () => Navigator.pop(sheet, 'file'),
+            ),
+            ListTile(
+              leading: const Icon(Icons.content_copy_rounded),
+              title: const Text('复制 JSON'),
+              onTap: () => Navigator.pop(sheet, 'copy'),
+            ),
+            if (!bank.builtin)
+              ListTile(
+                leading: Icon(Icons.delete_outline_rounded, color: scheme.error),
+                title: Text('删除这个词库', style: TextStyle(color: scheme.error)),
+                onTap: () => Navigator.pop(sheet, 'delete'),
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+    if (action == null || !context.mounted) return;
+
+    switch (action) {
+      case 'file':
+        await _exportBankFile(context, bank);
+      case 'copy':
+        await _copyBankJson(context, bank);
+      case 'delete':
+        await _deleteBank(context, bank);
+    }
+  }
+
+  Future<void> _exportBankFile(BuildContext context, BankSummary bank) async {
+    final json = await _busy(context, () => state.exportBankJson(bank.id));
+    if (!context.mounted) return;
+    final r = await ExportService.saveText('langobei-bank-${bank.id}.json', json);
+    if (!context.mounted) return;
+    _toast(context, r.ok ? '已导出到 ${r.message}' : '导出失败：${r.message}');
+  }
+
+  Future<void> _copyBankJson(BuildContext context, BankSummary bank) async {
+    final json = await _busy(context, () => state.exportBankJson(bank.id));
+    await Clipboard.setData(ClipboardData(text: json));
+    if (!context.mounted) return;
+    _toast(context, '已复制「${bank.name}」的 JSON（${(json.length / 1024).toStringAsFixed(0)} KB）');
+  }
+
+  Future<void> _deleteBank(BuildContext context, BankSummary bank) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (dialog) => AlertDialog(
+        title: const Text('删除词库'),
+        content: Text('删掉「${bank.name}」？词库文件会一并删除，学习进度不受影响。'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(dialog, false), child: const Text('取消')),
+          FilledButton(onPressed: () => Navigator.pop(dialog, true), child: const Text('删除')),
+        ],
+      ),
+    );
+    if (ok != true || !context.mounted) return;
+    try {
+      await state.removeBank(bank.id);
+      if (!context.mounted) return;
+      _toast(context, '已删除「${bank.name}」');
+    } catch (e) {
+      if (context.mounted) _toast(context, '删除失败：$e');
+    }
+  }
+
+  /// 跑可能有点慢的异步任务：盖一层不可点的遮罩挡住连点。
+  ///
+  /// 这里故意不用 CircularProgressIndicator：它一直在动，会让
+  /// 「等界面稳定下来」的 widget 测试永远等不到头，换成静态提示。
+  Future<T> _busy<T>(BuildContext context, Future<T> Function() task) async {
+    final overlay = Overlay.of(context, rootOverlay: true);
+    final entry = OverlayEntry(
+      builder: (_) => const AbsorbPointer(
+        child: ColoredBox(
+          color: Color(0x30000000),
+          child: Center(
+            child: Card(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: 22, vertical: 16),
+                child: Text('处理中…'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(entry);
+    try {
+      return await task();
+    } finally {
+      entry.remove();
+    }
   }
 
   void _toast(BuildContext context, String text, {SnackBarAction? action}) {
@@ -664,6 +872,60 @@ class _DiagnosticsState extends State<_Diagnostics> {
       '屏幕 $w×$h @${dpr.toStringAsFixed(2)} · 字号 ${scale.toStringAsFixed(2)}× · '
       '~$fpsText fps（最低 $minText）',
       style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline, fontSize: 10),
+    );
+  }
+}
+
+/// 粘贴词库 JSON 的对话框。
+///
+/// 单独做成 StatefulWidget 是为了让 TextEditingController 跟着对话框自己的生命周期走：
+/// 之前放在外面、showDialog 一返回就 dispose，退场动画还在重建 TextField 时会碰已销毁的
+/// controller，整页直接变成 Flutter 的红屏。
+class _PasteBankDialog extends StatefulWidget {
+  const _PasteBankDialog();
+
+  @override
+  State<_PasteBankDialog> createState() => _PasteBankDialogState();
+}
+
+class _PasteBankDialogState extends State<_PasteBankDialog> {
+  final TextEditingController _controller = TextEditingController();
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('粘贴词库 JSON'),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Text('有一段 {"words": [...]} 就够，id 和 name 可以省略。'),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _controller,
+            minLines: 5,
+            maxLines: 9,
+            decoration: const InputDecoration(
+              hintText: '{"words": [{"word": "apple", "meaning": "苹果"}]}',
+            ),
+          ),
+        ],
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, _controller.text),
+          child: const Text('导入'),
+        ),
+      ],
     );
   }
 }

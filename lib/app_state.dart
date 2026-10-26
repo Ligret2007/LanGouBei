@@ -3,9 +3,10 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/services.dart' show rootBundle;
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'bank/bank_registry.dart';
+import 'bank/word_bank.dart';
 import 'models/word.dart';
 import 'word_queue.dart';
 
@@ -21,10 +22,28 @@ class StudyItem {
 
 /// 全局状态：词库、设置、学习档案、每日统计
 class AppState extends ChangeNotifier {
+  AppState();
+
+  /// 只给测试用：注入一个已经建好的词库注册表，省掉资源加载
+  AppState.withRegistry(WordBankRegistry registry) : _registry = registry;
+
   static const String _key = 'langobei.state.v1';
   static const int dailyGoal = 20;
 
+  /// 当前词库的单词（切换词库时整体替换）
   List<Word> allWords = const [];
+
+  /// 词库注册表：内置 + 已导入
+  WordBankRegistry? _registry;
+
+  /// 当前词库
+  BankSummary? activeBank;
+
+  /// 界面上可选的全部词库（内置在前，导入的在后）
+  List<BankSummary> get availableBanks => _registry?.all ?? const [];
+
+  /// 已导入的词库
+  List<BankSummary> get importedBanks => _registry?.imported ?? const [];
   Map<String, WordProgress> progress = {};
   Map<String, DayStat> daily = {};
   Settings settings = Settings();
@@ -42,11 +61,7 @@ class AppState extends ChangeNotifier {
   // ---------------- 初始化 ----------------
   Future<void> load() async {
     _prefs = await SharedPreferences.getInstance();
-    final raw = await rootBundle.loadString('assets/words_gaokao.json');
-    final data = jsonDecode(raw) as Map<String, dynamic>;
-    allWords = (data['words'] as List<dynamic>)
-        .map((e) => Word.fromJson(e as Map<String, dynamic>))
-        .toList();
+    _registry ??= await WordBankRegistry.fromAssets();
 
     final saved = _prefs?.getString(_key);
     if (saved != null && saved.isNotEmpty) {
@@ -66,8 +81,27 @@ class AppState extends ChangeNotifier {
         daily = {};
       }
     }
+    await _applyBank(settings.bank, persist: false);
     ready = true;
     notifyListeners();
+  }
+
+  /// 加载某个词库：只解析这一个库，别的库不碰。
+  Future<void> _applyBank(String id, {bool persist = true}) async {
+    final registry = _registry;
+    if (registry == null) return;
+    final source = registry.sourceOf(id) ?? registry.sourceOf(kBankCore);
+    if (source == null) {
+      allWords = const [];
+      activeBank = null;
+      return;
+    }
+    final bank = await source.load();
+    allWords = bank.words;
+    activeBank = BankSummary(meta: bank.meta, wordCount: bank.wordCount);
+    if (persist) {
+      settings.bank = bank.id;
+    }
   }
 
   /// 存档内容：写盘和「导出数据」共用同一份格式，导出的东西就是能用来恢复的东西
@@ -117,8 +151,8 @@ class AppState extends ChangeNotifier {
   }
 
   // ---------------- 词库 / 统计 ----------------
-  List<Word> get bankWords =>
-      settings.bank == 'ext' ? allWords : allWords.where((w) => w.tier == 'core').toList();
+  /// 当前词库的单词（加载时已按 tier 过滤，这里不能再过滤一次）
+  List<Word> get bankWords => allWords;
 
   int get bankTotal => bankWords.length;
 
@@ -277,13 +311,45 @@ class AppState extends ChangeNotifier {
     await _saveNow();
   }
 
-  /// 切换词库（菜鸟 / 大神）。进度按单词 id 存，换库不会丢已经背过的词
+  /// 切换词库（内置的菜鸟/大神，或用户导入的库）。
+  /// 进度按单词 id 存，换库不会丢已经背过的词。
   Future<void> setBank(String bank) async {
-    final target = bank == kBankExt ? kBankExt : kBankCore;
-    if (settings.bank == target) return;
-    settings.bank = target;
+    if (_registry == null) return;
+    if (activeBank?.id == bank) return;
+    await _applyBank(bank);
     notifyListeners();
     await _saveNow();
+  }
+
+  /// 导入一个词库（文件内容或粘贴的文本）。成功后自动切过去。
+  Future<BankParseResult> importBank(String raw, {String? filename}) async {
+    final registry = _registry;
+    if (registry == null) throw const BankFormatException('词库还没加载完');
+    final result = await registry.import(raw, filename: filename);
+    await setBank(result.bank.id);
+    return result;
+  }
+
+  /// 删除一个导入的词库；删的正是当前库时回退到内置菜鸟库
+  Future<void> removeBank(String id) async {
+    final registry = _registry;
+    if (registry == null) return;
+    await registry.remove(id);
+    if (activeBank?.id == id) {
+      await _applyBank(kBankCore);
+    }
+    notifyListeners();
+    await _saveNow();
+  }
+
+  /// 导出某个词库成 JSON 文本
+  Future<String> exportBankJson(String id) async {
+    final registry = _registry;
+    if (registry == null) throw const BankFormatException('词库还没加载完');
+    final source = registry.sourceOf(id);
+    if (source == null) throw BankFormatException('找不到词库 $id');
+    final bank = await source.load();
+    return bank.encode();
   }
 
   /// 修改高考年份（更多页里也能改）
@@ -314,6 +380,7 @@ class AppState extends ChangeNotifier {
     streak = 0;
     lastStudyDay = null;
     settings = Settings(themeMode: mode, themePreset: preset);
+    await _applyBank(kBankCore);
     notifyListeners();
     await _saveNow();
   }

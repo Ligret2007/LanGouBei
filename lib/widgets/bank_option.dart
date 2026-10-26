@@ -10,6 +10,9 @@ class BankOption extends StatelessWidget {
   final bool disabled;
   final VoidCallback onTap;
 
+  /// 右侧自定义控件（比如导入词库的「更多操作」按钮）；给了就替换默认图标
+  final Widget? trailing;
+
   const BankOption({
     super.key,
     required this.title,
@@ -17,6 +20,7 @@ class BankOption extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.disabled = false,
+    this.trailing,
   });
 
   @override
@@ -61,7 +65,9 @@ class BankOption extends StatelessWidget {
                     ],
                   ),
                 ),
-                if (selected)
+                if (trailing != null)
+                  trailing!
+                else if (selected)
                   Icon(Icons.check_circle_rounded, color: theme.colorScheme.primary)
                 else if (disabled)
                   TagChip('敬请期待')

@@ -73,6 +73,21 @@ class ExportService {
   static String json(AppState state, {DateTime? now}) =>
       const JsonEncoder.withIndent('  ').convert(payload(state, now: now));
 
+  /// 把任意文本写进系统「下载」目录，返回可读位置。导出词库也走这条通道。
+  static Future<ExportResult> saveText(String filename, String content) async {
+    try {
+      final location = await _channel.invokeMethod<String>('saveToDownloads', {
+        'filename': filename,
+        'content': content,
+      });
+      return ExportResult(true, location ?? filename);
+    } on PlatformException catch (e) {
+      return ExportResult(false, e.message ?? '写入失败');
+    } on MissingPluginException {
+      return const ExportResult(false, '当前平台不支持写入文件');
+    }
+  }
+
   /// 写进系统「下载」目录，返回可读位置
   static Future<ExportResult> exportToFile(AppState state, {DateTime? now}) async {
     final name = fileName(now);

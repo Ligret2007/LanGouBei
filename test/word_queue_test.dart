@@ -2,6 +2,8 @@ import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:langobei/app_state.dart';
+import 'package:langobei/bank/bank_registry.dart';
+import 'package:langobei/bank/bank_storage.dart';
 import 'package:langobei/models/word.dart';
 import 'package:langobei/word_queue.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -100,9 +102,11 @@ void main() {
       TestWidgetsFlutterBinding.ensureInitialized();
       SharedPreferences.setMockInitialValues({});
 
-      final s = AppState();
+      final s = AppState.withRegistry(
+        await WordBankRegistry.fromAssets(storage: MemoryBankStorage()),
+      );
       await s.load();
-      expect(s.allWords.length, 3540, reason: '词库文件本身没变');
+      expect(s.allWords.length, 3014, reason: '现在只加载当前词库这一份');
       expect(s.bankTotal, 3014, reason: '默认菜鸟库');
 
       final queue = s.pickStudyWords(size: 20, seed: 1234);
