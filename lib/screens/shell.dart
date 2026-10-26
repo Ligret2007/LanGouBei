@@ -55,7 +55,7 @@ class _ShellState extends State<Shell> {
               // 整屏平移：被选中的回到原位，其余的推到屏幕外一整屏
               // （左页推到左边、右页推到右边），两页同向滑动像翻页
               offset: i == _index ? Offset.zero : Offset(i < _index ? -1.0 : 1.0, 0),
-              child: _page(i),
+              child: RepaintBoundary(child: _page(i)),
             ),
         ],
       ),

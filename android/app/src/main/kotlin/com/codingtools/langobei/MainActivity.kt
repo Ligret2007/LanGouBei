@@ -3,8 +3,13 @@ package com.codingtools.langobei
 import android.content.ContentValues
 import android.content.Intent
 import android.os.Build
+import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.view.Surface
+import android.view.SurfaceView
+import android.view.View
+import android.view.ViewGroup
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -12,6 +17,59 @@ import java.io.File
 
 class MainActivity : FlutterActivity() {
     private val channel = "langobei/export"
+    private var frameRateAttempts = 0
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        // 等 FlutterView 挂上去以后再请求，太早的话 Surface 还没建好
+        window.decorView.postDelayed({ requestPeakRefreshRate() }, 400L)
+    }
+
+    /**
+     * 让系统按屏幕峰值刷新率出帧。
+     *
+     * Android 默认会把普通 App 的渲染率压在 60Hz（哪怕屏幕是 120Hz），
+     * 这里显式请求：Android 15+ 用 View.setRequestedFrameRate，
+     * Android 11-14 直接给窗口里那个 SurfaceView 的 Surface 设帧率。
+     * 60Hz 屏上直接返回，不改任何东西。
+     */
+    private fun requestPeakRefreshRate() {
+        val peak = peakRefreshRate()
+        if (peak < 90f) return
+
+        if (Build.VERSION.SDK_INT >= 35) {
+            window.decorView.setRequestedFrameRate(peak)
+        }
+        if (Build.VERSION.SDK_INT >= 30) {
+            val surface = findSurfaceView(window.decorView)?.holder?.surface
+            if (surface != null && surface.isValid) {
+                surface.setFrameRate(peak, Surface.FRAME_RATE_COMPATIBILITY_DEFAULT)
+            } else if (frameRateAttempts < 4) {
+                // Surface 还没就绪，稍后再试
+                frameRateAttempts++
+                window.decorView.postDelayed({ requestPeakRefreshRate() }, 400L)
+            }
+        }
+    }
+
+    private fun peakRefreshRate(): Float {
+        if (Build.VERSION.SDK_INT < 30) {
+            @Suppress("DEPRECATION")
+            return windowManager.defaultDisplay?.refreshRate ?: 0f
+        }
+        val dsp = display ?: return 0f
+        return dsp.supportedModes.map { it.refreshRate }.maxOrNull() ?: dsp.refreshRate
+    }
+
+    private fun findSurfaceView(v: View): SurfaceView? {
+        if (v is SurfaceView) return v
+        if (v is ViewGroup) {
+            for (i in 0 until v.childCount) {
+                findSurfaceView(v.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math' as math;
+import 'dart:ui' show FramePhase;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart' show Clipboard, ClipboardData;
 
 import '../app_state.dart';
@@ -263,21 +265,8 @@ class MoreScreen extends StatelessWidget {
                             style: theme.textTheme.labelSmall
                                 ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                         const SizedBox(height: 2),
-                        // 渲染参数：排查"字发虚"时一眼能看出屏幕像素比和字号缩放
-                        Builder(
-                          builder: (context) {
-                            final mq = MediaQuery.of(context);
-                            final dpr = mq.devicePixelRatio;
-                            final w = (mq.size.width * dpr).round();
-                            final h = (mq.size.height * dpr).round();
-                            final scale = mq.textScaler.scale(14) / 14;
-                            return Text(
-                              '屏幕 $w×$h @${dpr.toStringAsFixed(2)} · 字号 ${scale.toStringAsFixed(2)}×',
-                              style: theme.textTheme.labelSmall
-                                  ?.copyWith(color: theme.colorScheme.outline, fontSize: 10),
-                            );
-                          },
-                        ),
+                        // 渲染参数 + 实测帧率：排查字发虚/掉帧时先看这一行
+                        const _Diagnostics(),
                       ],
                     ),
                   ),
@@ -596,4 +585,74 @@ class _DashedCirclePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _DashedCirclePainter old) => old.color != color;
+}
+
+/// 「关于」里的诊断行：屏幕物理像素、像素比、字号缩放、最近实测帧率。
+///
+/// 帧率用相邻帧的 vsync 间隔算，反映的是屏幕真正给了多少帧；
+/// 高刷屏上应该看到 ~120，如果只有 ~60，说明系统把这 App 限到了 60Hz。
+class _Diagnostics extends StatefulWidget {
+  const _Diagnostics();
+
+  @override
+  State<_Diagnostics> createState() => _DiagnosticsState();
+}
+
+class _DiagnosticsState extends State<_Diagnostics> {
+  double _fps = 0;
+  int _frames = 0;
+  int _intervalTotalUs = 0;
+  int _lastVsyncUs = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    SchedulerBinding.instance.addTimingsCallback(_onTimings);
+  }
+
+  @override
+  void dispose() {
+    SchedulerBinding.instance.removeTimingsCallback(_onTimings);
+    super.dispose();
+  }
+
+  void _onTimings(List<FrameTiming> timings) {
+    for (final t in timings) {
+      final us = t.timestampInMicroseconds(FramePhase.vsyncStart);
+      if (_lastVsyncUs != 0) {
+        final d = us - _lastVsyncUs;
+        // 丢掉异常间隔（刚从后台回来、或者卡了一大下）
+        if (d > 1000 && d < 100000) {
+          _intervalTotalUs += d;
+          _frames++;
+        }
+      }
+      _lastVsyncUs = us;
+    }
+    if (_frames >= 20) {
+      final avg = _intervalTotalUs / _frames;
+      _frames = 0;
+      _intervalTotalUs = 0;
+      final fps = avg <= 0 ? 0.0 : (1000000 / avg).clamp(0.0, 240.0);
+      // 只有明显变化才刷新，否则稳定后每一帧都在重建
+      if (mounted && (fps - _fps).abs() >= 1) {
+        setState(() => _fps = fps);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final mq = MediaQuery.of(context);
+    final dpr = mq.devicePixelRatio;
+    final w = (mq.size.width * dpr).round();
+    final h = (mq.size.height * dpr).round();
+    final scale = mq.textScaler.scale(14) / 14;
+    final fpsText = _fps <= 0 ? '—' : _fps.toStringAsFixed(0);
+    return Text(
+      '屏幕 $w×$h @${dpr.toStringAsFixed(2)} · 字号 ${scale.toStringAsFixed(2)}× · ~$fpsText fps',
+      style: theme.textTheme.labelSmall?.copyWith(color: theme.colorScheme.outline, fontSize: 10),
+    );
+  }
 }
