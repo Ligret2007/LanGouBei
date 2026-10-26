@@ -10,7 +10,7 @@ MIT 协议开源，自用、二改、商用都可以，保留版权声明即可�
 
 ## 下载安装
 
-到 [Releases](https://github.com/Ligret2007/LanGouBei/releases/latest) 下载 `LangoBei-v1.1.0.apk`，在手机上点开安装即可（首次安装需要在系统里允许「安装未知应用」）。支持 Android 7.0 及以上（`minSdk 24`），安装包约 50 MB。
+到 [Releases](https://github.com/Ligret2007/LanGouBei/releases/latest) 下载 `LangoBei-v2.0.0.apk`，在手机上点开安装即可（首次安装需要在系统里允许「安装未知应用」）。支持 Android 7.0 及以上（`minSdk 24`），安装包约 52 MB。
 
 想自己编译，见下面的[怎么跑起来](#怎么跑起来)。
 
