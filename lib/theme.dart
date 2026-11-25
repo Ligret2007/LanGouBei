@@ -178,6 +178,12 @@ ThemeData buildTheme(Brightness brightness, Color seed) {
   );
 }
 
+/// 音标统一成 /xxx/：词库里的数据有的自带斜杠，有的没有，直接套模板会出现 //xxx//
+String formatPhonetic(String phonetic) {
+  final t = phonetic.trim().replaceAll(RegExp(r'^/+|/+$'), '');
+  return t.isEmpty ? '' : '/$t/';
+}
+
 /// 统一圆角卡片
 class SurfaceCard extends StatelessWidget {
   final Widget child;

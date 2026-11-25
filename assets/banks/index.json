@@ -21,6 +21,46 @@
       "asset": "assets/words_gaokao.json",
       "tier": null,
       "wordCount": 3540
+    },
+    {
+      "id": "cet4",
+      "name": "四级词汇",
+      "subtitle": "3849 词 · 四级大纲词 · 词库来自 ECDICT",
+      "description": "ECDICT 的 四级词汇 大纲词，释义与音标来自 ECDICT（MIT）。",
+      "author": "ECDICT",
+      "asset": "assets/banks/ecdict_cet4.json",
+      "tier": null,
+      "wordCount": 3849
+    },
+    {
+      "id": "cet6",
+      "name": "六级词汇",
+      "subtitle": "5407 词 · 六级大纲词 · 词库来自 ECDICT",
+      "description": "ECDICT 的 六级词汇 大纲词，释义与音标来自 ECDICT（MIT）。",
+      "author": "ECDICT",
+      "asset": "assets/banks/ecdict_cet6.json",
+      "tier": null,
+      "wordCount": 5407
+    },
+    {
+      "id": "ielts",
+      "name": "雅思词汇",
+      "subtitle": "5040 词 · 雅思高频 · 词库来自 ECDICT",
+      "description": "ECDICT 的 雅思词汇 大纲词，释义与音标来自 ECDICT（MIT）。",
+      "author": "ECDICT",
+      "asset": "assets/banks/ecdict_ielts.json",
+      "tier": null,
+      "wordCount": 5040
+    },
+    {
+      "id": "ky",
+      "name": "考研词汇",
+      "subtitle": "4801 词 · 考研大纲词 · 词库来自 ECDICT",
+      "description": "ECDICT 的 考研词汇 大纲词，释义与音标来自 ECDICT（MIT）。",
+      "author": "ECDICT",
+      "asset": "assets/banks/ecdict_ky.json",
+      "tier": null,
+      "wordCount": 4801
     }
   ]
 }

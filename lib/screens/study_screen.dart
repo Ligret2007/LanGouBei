@@ -5,6 +5,8 @@ import '../models/word.dart';
 import '../widgets/card_switch.dart';
 import '../theme.dart';
 import '../widgets/flip_card.dart';
+import 'search_screen.dart';
+import 'wrong_book_screen.dart';
 
 /// 知新：按队列过词，选「不认识」进错题本；每答 5 个词实时插一张错题卡
 class StudyScreen extends StatefulWidget {
@@ -116,6 +118,18 @@ class _StudyScreenState extends State<StudyScreen> {
     );
   }
 
+  void _openSearch() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => SearchScreen(state: _state)),
+    );
+  }
+
+  void _openWrongBook() {
+    Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => WrongBookScreen(state: _state)),
+    );
+  }
+
   Widget _header(ThemeData theme) {
     final stat = _state.todayStat;
     return Padding(
@@ -133,12 +147,25 @@ class _StudyScreenState extends State<StudyScreen> {
               Text('今日 ${stat.choices} 次',
                   style: theme.textTheme.labelMedium
                       ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+              IconButton(
+                onPressed: _openSearch,
+                icon: const Icon(Icons.search_rounded, size: 22),
+                visualDensity: VisualDensity.compact,
+                tooltip: '查词',
+              ),
             ],
           ),
           const SizedBox(height: 10),
           Row(
             children: [
-              _MiniStat(label: '错题本', value: '${_state.wrongCount}'),
+              InkWell(
+                onTap: _openWrongBook,
+                borderRadius: BorderRadius.circular(8),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 2),
+                  child: _MiniStat(label: '错题本', value: '${_state.wrongCount}'),
+                ),
+              ),
               const SizedBox(width: 16),
               _MiniStat(label: '已掌握', value: '${_state.masteredCount}'),
               const Spacer(),
@@ -186,65 +213,98 @@ class _StudyScreenState extends State<StudyScreen> {
   Widget _options(ThemeData theme) {
     final item = _current!;
     final isFresh = _state.progress[item.word.id] == null;
-
-    if (!_revealed) {
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-        child: OutlinedButton.icon(
-          onPressed: _reveal,
-          icon: const Icon(Icons.visibility_outlined),
-          label: const Text('点击卡片 / 显示释义'),
-        ),
-      );
-    }
+    final inBook = _state.isInWrongBook(item.word.id);
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
+      padding: const EdgeInsets.fromLTRB(8, 0, 20, 4),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (isFresh) ...[
-            SizedBox(
-              height: 46,
-              child: OutlinedButton.icon(
-                onPressed: () => _answer(Rating.confirm),
-                icon: const Icon(Icons.verified_outlined, size: 18),
-                label: const Text('确定认识（直接加入已掌握）'),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size.fromHeight(46),
-                  foregroundColor: theme.colorScheme.primary,
-                ),
+          // 单独一个按钮：不表态也能把词收进错题本
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () async {
+                if (inBook) {
+                  await _state.removeFromWrongBook(item.word.id);
+                } else {
+                  await _state.addToWrongBook(item.word);
+                }
+                if (mounted) setState(() {});
+              },
+              icon: Icon(inBook ? Icons.bookmark_added : Icons.bookmark_add_outlined,
+                  size: 18),
+              label: Text(inBook ? '已在错题本（点一下移出）' : '加入错题本'),
+              style: TextButton.styleFrom(
+                foregroundColor: inBook ? kWarn : theme.colorScheme.primary,
+                visualDensity: VisualDensity.compact,
               ),
             ),
-            const SizedBox(height: 10),
-          ],
-          Row(
-            children: [
-              Expanded(
-                child: _RateButton(
-                  label: '不认识',
-                  color: kBad,
-                  onTap: () => _answer(Rating.unknown),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _RateButton(
-                  label: '模糊',
-                  color: kWarn,
-                  onTap: () => _answer(Rating.fuzzy),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: _RateButton(
-                  label: '认识',
-                  color: kGood,
-                  onTap: () => _answer(Rating.know),
-                ),
-              ),
-            ],
           ),
+          if (!_revealed)
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: SizedBox(
+                height: 46,
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _reveal,
+                  icon: const Icon(Icons.visibility_outlined),
+                  label: const Text('点击卡片 / 显示释义'),
+                ),
+              ),
+            )
+          else ...[
+            if (isFresh) ...[
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: SizedBox(
+                  height: 46,
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () => _answer(Rating.confirm),
+                    icon: const Icon(Icons.verified_outlined, size: 18),
+                    label: const Text('确定认识（直接加入已掌握）'),
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size.fromHeight(46),
+                      foregroundColor: theme.colorScheme.primary,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
+            Padding(
+              padding: const EdgeInsets.only(right: 12),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _RateButton(
+                      label: '不认识',
+                      color: kBad,
+                      onTap: () => _answer(Rating.unknown),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _RateButton(
+                      label: '模糊',
+                      color: kWarn,
+                      onTap: () => _answer(Rating.fuzzy),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _RateButton(
+                      label: '认识',
+                      color: kGood,
+                      onTap: () => _answer(Rating.know),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

@@ -46,6 +46,9 @@ class AppState extends ChangeNotifier {
   List<BankSummary> get importedBanks => _registry?.imported ?? const [];
   Map<String, WordProgress> progress = {};
   Map<String, DayStat> daily = {};
+
+  /// 不在当前词库里的错题词（从查词页加进来的），连释义一起存
+  Map<String, Word> extraWrong = {};
   Settings settings = Settings();
   int streak = 0;
   String? lastStudyDay;
@@ -74,11 +77,15 @@ class AppState extends ChangeNotifier {
           (k, v) => MapEntry(k, DayStat.fromJson(v as Map<String, dynamic>)),
         );
         settings = Settings.fromJson(s['settings'] as Map<String, dynamic>? ?? {});
+        extraWrong = (s['extra'] as Map<String, dynamic>? ?? {}).map(
+          (k, v) => MapEntry(k, Word.fromJson(v as Map<String, dynamic>)),
+        );
         streak = (s['streak'] as num?)?.toInt() ?? 0;
         lastStudyDay = s['lastStudyDay'] as String?;
       } catch (_) {
         progress = {};
         daily = {};
+        extraWrong = {};
       }
     }
     await _applyBank(settings.bank, persist: false);
@@ -108,6 +115,7 @@ class AppState extends ChangeNotifier {
   Map<String, dynamic> toSnapshot() => {
         'progress': progress.map((k, v) => MapEntry(k, v.toJson())),
         'daily': daily.map((k, v) => MapEntry(k, v.toJson())),
+        'extra': extraWrong.map((k, v) => MapEntry(k, v.toJson())),
         'settings': settings.toJson(),
         'streak': streak,
         'lastStudyDay': lastStudyDay,
@@ -156,8 +164,51 @@ class AppState extends ChangeNotifier {
 
   int get bankTotal => bankWords.length;
 
-  List<Word> get wrongBookWords =>
-      bankWords.where((w) => progress[w.id]?.inWrongBook ?? false).toList();
+  List<Word> get wrongBookWords {
+    final out = <Word>[];
+    final seen = <String>{};
+    for (final w in bankWords) {
+      if (progress[w.id]?.inWrongBook ?? false) {
+        out.add(w);
+        seen.add(w.id);
+      }
+    }
+    for (final w in extraWrong.values) {
+      if (seen.contains(w.id)) continue;
+      if (progress[w.id]?.inWrongBook ?? false) out.add(w);
+    }
+    return out;
+  }
+
+  /// 这个词在错题本里吗（词库里的、查词加进来的都算）
+  bool isInWrongBook(String id) => progress[id]?.inWrongBook ?? false;
+
+  /// 手动加入错题本。不在当前词库里的词，连音标释义一起存下来
+  Future<void> addToWrongBook(Word word) async {
+    final p = progress[word.id] ?? WordProgress();
+    if (p.inWrongBook) {
+      notifyListeners();
+      return;
+    }
+    p.inWrongBook = true;
+    p.lastSeenMs = DateTime.now().millisecondsSinceEpoch;
+    progress[word.id] = p;
+    if (!bankWords.any((w) => w.id == word.id)) {
+      extraWrong[word.id] = word;
+    }
+    notifyListeners();
+    await _saveNow();
+  }
+
+  /// 手动移出错题本
+  Future<void> removeFromWrongBook(String id) async {
+    final p = progress[id];
+    if (p == null || !p.inWrongBook) return;
+    p.inWrongBook = false;
+    extraWrong.remove(id);
+    notifyListeners();
+    await _saveNow();
+  }
 
   int get wrongCount => wrongBookWords.length;
 
@@ -252,6 +303,7 @@ class AppState extends ChangeNotifier {
       p.knowCount += 1;
       p.forceMastered();
       p.inWrongBook = false;
+      extraWrong.remove(word.id);
     } else {
       switch (choice) {
         case Rating.know:
@@ -273,7 +325,10 @@ class AppState extends ChangeNotifier {
         p.inWrongBook = true;
       } else if (choice == Rating.know) {
         // 知新里插入的错题卡 / 反思里答对 → 移出错题本
-        if (fromReflect || isReviewCard) p.inWrongBook = false;
+        if (fromReflect || isReviewCard) {
+          p.inWrongBook = false;
+          extraWrong.remove(word.id);
+        }
       }
     }
 
@@ -377,6 +432,7 @@ class AppState extends ChangeNotifier {
 
     progress = {};
     daily = {};
+    extraWrong = {};
     streak = 0;
     lastStudyDay = null;
     settings = Settings(themeMode: mode, themePreset: preset);

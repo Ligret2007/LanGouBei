@@ -25,13 +25,15 @@ void main() {
       final storage = MemoryBankStorage();
       final registry = await WordBankRegistry.fromAssets(storage: storage);
 
-      expect(registry.builtins.map((b) => b.id), ['core', 'ext']);
+      // 两个高考库 + ECDICT 的四个考试词库
+      expect(registry.builtins.map((b) => b.id),
+          ['core', 'ext', 'cet4', 'cet6', 'ielts', 'ky']);
       expect(registry.builtins.first.name, '高考：我是菜鸟');
       expect(registry.builtins.first.wordCount, 3014);
-      expect(registry.builtins.last.wordCount, 3540);
+      expect(registry.builtins[1].wordCount, 3540);
       expect(registry.builtins.first.detail, '3014 词 · 基础到进阶，覆盖高考高频');
       expect(registry.imported, isEmpty);
-      expect(registry.all.length, 2);
+      expect(registry.all.length, 6);
     });
 
     test('内置词库真能加载，且 tier 过滤正确', () async {
@@ -50,6 +52,22 @@ void main() {
       expect(ext.words.map((w) => w.id).toSet().containsAll(coreIds), isTrue);
     });
 
+    test('ECDICT 的四个考试词库真能加载', () async {
+      final registry = await WordBankRegistry.fromAssets(storage: MemoryBankStorage());
+      for (final id in ['cet4', 'cet6', 'ielts', 'ky']) {
+        final bank = await registry.sourceOf(id)!.load();
+        expect(bank.wordCount, greaterThan(2000), reason: '$id 词条太少');
+        expect(bank.words.every((w) => w.word.isNotEmpty), isTrue);
+        expect(bank.words.every((w) => w.meaning.isNotEmpty), isTrue,
+            reason: '$id 有词条没有释义');
+        expect(
+          bank.words.every((w) => ['easy', 'normal', 'hard', 'extra'].contains(w.level)),
+          isTrue,
+          reason: '$id 出现了不认识的分级',
+        );
+      }
+    });
+
     test('导入后能列出、能加载、能持久化', () async {
       final storage = MemoryBankStorage();
       final registry = await WordBankRegistry.fromAssets(storage: storage);
@@ -63,7 +81,7 @@ void main() {
       expect(result.warnings, isEmpty);
 
       expect(registry.imported.length, 1);
-      expect(registry.all.length, 3);
+      expect(registry.all.length, 7);
       expect(storage.banks.containsKey('my'), isTrue);
       expect(storage.index, contains('我的四级词'));
 
@@ -125,7 +143,7 @@ void main() {
       storage.index = '{ 这不是 JSON';
       final registry = await WordBankRegistry.fromAssets(storage: storage);
 
-      expect(registry.builtins.length, 2);
+      expect(registry.builtins.length, 6);
       expect(registry.imported, isEmpty);
     });
 

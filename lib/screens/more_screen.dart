@@ -15,6 +15,8 @@ import '../models/word.dart';
 import '../widgets/bank_option.dart';
 import '../widgets/year_wheel.dart';
 import '../theme.dart';
+import 'search_screen.dart';
+import 'wrong_book_screen.dart';
 import '../version.dart';
 
 /// 更多：外观（深浅色 + 主题色）、当前设置、重置入口
@@ -267,6 +269,36 @@ class MoreScreen extends StatelessWidget {
             ),
             const SizedBox(height: 14),
             SurfaceCard(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
+              child: Column(
+                children: [
+                  _navRow(
+                    theme,
+                    icon: Icons.search_rounded,
+                    label: '查词',
+                    detail: 'ECDICT 词典',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => SearchScreen(state: state)),
+                    ),
+                  ),
+                  Divider(
+                    height: 1,
+                    color: theme.colorScheme.outlineVariant.withValues(alpha: 0.35),
+                  ),
+                  _navRow(
+                    theme,
+                    icon: Icons.bookmark_border_rounded,
+                    label: '错题本',
+                    detail: '${state.wrongCount} 词',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => WrongBookScreen(state: state)),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            SurfaceCard(
               child: Row(
                 children: [
                   Container(
@@ -306,6 +338,37 @@ class MoreScreen extends StatelessWidget {
               icon: const Icon(Icons.restart_alt_rounded),
               label: const Text('清空进度，重新走一遍引导'),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navRow(
+    ThemeData theme, {
+    required IconData icon,
+    required String label,
+    required String detail,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(icon, size: 20, color: theme.colorScheme.primary),
+            const SizedBox(width: 12),
+            Text(label,
+                style: theme.textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text(detail,
+                style: theme.textTheme.labelMedium
+                    ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            const SizedBox(width: 2),
+            Icon(Icons.chevron_right_rounded,
+                size: 18, color: theme.colorScheme.onSurfaceVariant),
           ],
         ),
       ),
